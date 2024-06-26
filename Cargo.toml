@@ -1,0 +1,40 @@
+[package]
+authors = ["Aaron Pribadi <aaron.pribadi@gmail.com>"]
+categories = ["algorithms"]
+description = "A high performance non-cryptographic random number generator."
+edition = "2021"
+keywords = ["random"]
+license = "Artistic-2.0"
+name = "dandelion-random"
+repository = "https://github.com/apribadi/dandelion"
+version = "0.1.0"
+
+[lib]
+name = "dandelion"
+
+[dependencies]
+getrandom = { version = "0.2.15", optional = true }
+rand_core = { version = "0.6.4", optional = true }
+
+[dev-dependencies]
+expect-test = "1.5.0"
+pcg_rand = "0.13.0"
+rand = "0.8.5"
+rand_xoshiro = "0.6.0"
+
+[features]
+getrandom = ["dep:getrandom"] # Rng::from_entropy
+rand_core = ["dep:rand_core"] # rand_core::{RngCore,SeedableRng}
+std = []
+thread_local = ["getrandom", "std"] # dandelion::thread_local
+
+[lints.rust]
+elided_lifetimes_in_paths = "warn"
+missing_docs = "warn"
+non_ascii_idents = "warn"
+trivial_numeric_casts = "warn"
+unreachable_pub = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"
+unused_results = "warn"
