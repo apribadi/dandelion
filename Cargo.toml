@@ -7,7 +7,10 @@ keywords = ["random"]
 license = "Artistic-2.0"
 name = "dandelion-random"
 repository = "https://github.com/apribadi/dandelion"
-version = "0.1.0"
+version = "0.1.1"
+
+[package.metadata.docs.rs]
+all-features = true
 
 [lib]
 name = "dandelion"
