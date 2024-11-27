@@ -1,3 +1,5 @@
+//! tests
+
 use std::array;
 use std::fmt::Write;
 use std::num::NonZeroU128;
@@ -32,7 +34,7 @@ fn test_api() {
 #[cfg(feature = "getrandom")]
 #[test]
 fn test_api_getrandom() {
-  let _ = Rng::from_entropy();
+  let _ = Rng::from_operating_system();
 }
 
 #[cfg(feature = "rand_core")]
@@ -44,7 +46,6 @@ fn test_api_rand_core() {
   let _ = <Rng as rand_core::RngCore>::next_u32(&mut rng);
   let _ = <Rng as rand_core::RngCore>::next_u64(&mut rng);
   <Rng as rand_core::RngCore>::fill_bytes(&mut rng, &mut [0; 16]);
-  let _ = <Rng as rand_core::RngCore>::try_fill_bytes(&mut rng, &mut [0; 16]);
 }
 
 #[cfg(feature = "thread_local")]

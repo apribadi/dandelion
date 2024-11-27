@@ -5,6 +5,7 @@ struct M8(u64);
 
 impl M8 {
   const ZERO: Self = Self(0);
+
   const ID: Self = Self(0x8040_2010_0804_0201);
 
   fn add(x: Self, y: Self) -> Self {

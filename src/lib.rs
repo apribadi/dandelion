@@ -1,5 +1,8 @@
 #![doc = include_str!("../README.md")]
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
+
+#[cfg(feature = "std")]
+extern crate std;
 
 use core::num::NonZeroU128;
 
@@ -9,15 +12,25 @@ use core::num::NonZeroU128;
 pub struct Rng { state: NonZeroU128 }
 
 #[inline(always)]
-const fn get_chunk<T, const N: usize>(slice: &[T], index: usize) -> &[T; N] {
-  assert!(index <= slice.len() && N <= slice.len() - index);
-  unsafe { &*slice.as_ptr().add(index).cast::<[T; N]>() }
+const fn get_chunk<T, const N: usize>(slice: &[T], offset: usize) -> &[T; N] {
+  assert!(offset <= slice.len() && N <= slice.len() - offset);
+  unsafe { &*(slice.as_ptr().add(offset) as *const [T; N]) }
 }
 
 #[inline(always)]
-fn get_chunk_mut<T, const N: usize>(slice: &mut [T], index: usize) -> &mut [T; N] {
-  assert!(index <= slice.len() && N <= slice.len() - index);
-  unsafe { &mut *slice.as_mut_ptr().add(index).cast::<[T; N]>() }
+fn get_chunk_mut<T, const N: usize>(slice: &mut [T], offset: usize) -> &mut [T; N] {
+  assert!(offset <= slice.len() && N <= slice.len() - offset);
+  unsafe { &mut *(slice.as_mut_ptr().add(offset) as *mut [T; N]) }
+}
+
+#[inline(always)]
+const fn front_chunk<T, const N: usize>(slice: &[T]) -> &[T; N] {
+  get_chunk(slice, 0)
+}
+
+#[inline(always)]
+fn front_chunk_mut<T, const N: usize>(slice: &mut [T]) -> &mut [T; N] {
+  get_chunk_mut(slice, 0)
 }
 
 #[inline(always)]
@@ -49,7 +62,7 @@ impl Rng {
     let y = u64::from_le_bytes(*get_chunk(&seed, 7));
     let s = x as u128 | ((y >> 8) as u128) << 64;
     let s = s | 1 << 120;
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
+    let s = NonZeroU128::new(s).unwrap();
     Self { state: hash(s) }
   }
 
@@ -59,7 +72,7 @@ impl Rng {
   pub const fn from_u64(seed: u64) -> Self {
     let s = seed as u128;
     let s = s | 1 << 64;
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
+    let s = NonZeroU128::new(s).unwrap();
     Self { state: hash(s) }
   }
 
@@ -85,18 +98,18 @@ impl Rng {
     Self { state }
   }
 
-  /// Creates a random number generator with entropy retrieved from the
+  /// Creates a random number generator with a random seed retrieved from the
   /// operating system.
 
   #[cfg(feature = "getrandom")]
   #[inline(never)]
   #[cold]
-  pub fn from_entropy() -> Self {
-    let mut buf = [0u8; 16];
-    getrandom::getrandom(&mut buf).expect("getrandom::getrandom failed!");
+  pub fn from_operating_system() -> Self {
+    let mut buf = [0; 16];
+    getrandom::fill(&mut buf).expect("getrandom::fill failed!");
     let s = u128::from_le_bytes(buf);
     let s = s | 1;
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
+    let s = NonZeroU128::new(s).unwrap();
     Self { state: s }
   }
 
@@ -109,7 +122,7 @@ impl Rng {
     let y = self.u64();
     let s = x as u128 ^ (y as u128) << 64;
     let s = s | 1;
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
+    let s = NonZeroU128::new(s).unwrap();
     Self { state: s }
   }
 
@@ -274,7 +287,7 @@ impl Rng {
   /// - Round to the nearest multiple of 2⁻⁶³.
   /// - Round to a `f32` using the default rounding mode.
   ///
-  /// An output zero will always be +0, never -0.
+  /// A zero output will always be +0, never -0.
 
   #[inline(always)]
   pub fn f32(&mut self) -> f32 {
@@ -293,14 +306,14 @@ impl Rng {
   /// - Round to the nearest multiple of 2⁻⁶³.
   /// - Round to a `f64` using the default rounding mode.
   ///
-  /// An output zero will always be +0, never -0.
+  /// A zero output will always be +0, never -0.
 
   #[inline(always)]
   pub fn f64(&mut self) -> f64 {
     // The conversion into a `f64` is two instructions on aarch64:
     //
-    //	 scvtf d0, x8, #63
-	  //   fabs d0, d0
+    //   scvtf d0, x8, #63
+    //   fabs d0, d0
 
     let x = self.i64();
     let x = f64::from_bits(0x3c00_0000_0000_0000) * x as f64;
@@ -318,42 +331,43 @@ impl Rng {
     while dst.len() >= 17 {
       let x = self.u64();
       let y = self.u64();
-      *get_chunk_mut(dst, 0) = x.to_le_bytes();
-      *get_chunk_mut(dst, 8) = y.to_le_bytes();
-      dst = &mut dst[16 ..];
+      *front_chunk_mut(dst) = x.to_le_bytes();
+      dst = &mut dst[8 ..];
+      *front_chunk_mut(dst) = y.to_le_bytes();
+      dst = &mut dst[8 ..];
     }
 
     if dst.len() >= 9 {
       let x = self.u64();
-      *get_chunk_mut(dst, 0) = x.to_le_bytes();
+      *front_chunk_mut(dst) = x.to_le_bytes();
       dst = &mut dst[8 ..];
     }
 
     let x = self.u64();
 
     match dst.len() {
-      1 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 1>(&x.to_le_bytes(), 0),
-      2 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 2>(&x.to_le_bytes(), 0),
-      3 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 3>(&x.to_le_bytes(), 0),
-      4 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 4>(&x.to_le_bytes(), 0),
-      5 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 5>(&x.to_le_bytes(), 0),
-      6 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 6>(&x.to_le_bytes(), 0),
-      7 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 7>(&x.to_le_bytes(), 0),
-      8 => *get_chunk_mut(dst, 0) = *get_chunk::<u8, 8>(&x.to_le_bytes(), 0),
-      _ => unsafe { core::hint::unreachable_unchecked() }
+      1 => *front_chunk_mut(dst) = *front_chunk::<u8, 1>(&x.to_le_bytes()),
+      2 => *front_chunk_mut(dst) = *front_chunk::<u8, 2>(&x.to_le_bytes()),
+      3 => *front_chunk_mut(dst) = *front_chunk::<u8, 3>(&x.to_le_bytes()),
+      4 => *front_chunk_mut(dst) = *front_chunk::<u8, 4>(&x.to_le_bytes()),
+      5 => *front_chunk_mut(dst) = *front_chunk::<u8, 5>(&x.to_le_bytes()),
+      6 => *front_chunk_mut(dst) = *front_chunk::<u8, 6>(&x.to_le_bytes()),
+      7 => *front_chunk_mut(dst) = *front_chunk::<u8, 7>(&x.to_le_bytes()),
+      8 => *front_chunk_mut(dst) = *front_chunk::<u8, 8>(&x.to_le_bytes()),
+      _ => unreachable!(),
     }
   }
 
-  /// Fills the provided buffer with independent uniformly distributed `u8`s.
+  /// Fills the provided buffer with independent uniformly distributed bytes.
 
   pub fn bytes(&mut self, dst: &mut [u8]) {
     self.bytes_inlined(dst);
   }
 
-  /// Samples an array of independent uniformly distributed `u8`s.
+  /// Samples an array of independent uniformly distributed bytes.
 
   pub fn byte_array<const N: usize>(&mut self) -> [u8; N] {
-    let mut buf = [0u8; N];
+    let mut buf = [0; N];
     self.bytes_inlined(&mut buf);
     buf
   }
@@ -374,11 +388,6 @@ impl rand_core::RngCore for Rng {
   fn fill_bytes(&mut self, dst: &mut [u8]) {
     self.bytes(dst)
   }
-
-  fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), rand_core::Error> {
-    self.bytes(dst);
-    Ok(())
-  }
 }
 
 #[cfg(feature = "rand_core")]
@@ -388,7 +397,7 @@ impl rand_core::SeedableRng for Rng {
   fn from_seed(seed: Self::Seed) -> Self {
     let s = u128::from_le_bytes(seed);
     let s = s | 1;
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
+    let s = NonZeroU128::new(s).unwrap();
     Self::from_state(s)
   }
 
@@ -396,17 +405,13 @@ impl rand_core::SeedableRng for Rng {
     Self::from_u64(seed)
   }
 
-  fn from_rng<T>(rng: T) -> Result<Self, rand_core::Error>
-  where
-    T: rand_core::RngCore
-  {
-    let mut rng = rng;
+  fn from_rng(rng: &mut impl rand_core::RngCore) -> Self {
     let x = rng.next_u64();
     let y = rng.next_u64();
     let s = x as u128 ^ (y as u128) << 64;
     let s = s | 1;
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
-    Ok(Self::from_state(s))
+    let s = NonZeroU128::new(s).unwrap();
+    Self::from_state(s)
   }
 }
 
@@ -417,8 +422,9 @@ pub mod thread_local {
   //! If you want to generate many random numbers, you should create a local
   //! generator with [dandelion::thread_local::split](split).
 
-  use std::cell::Cell;
-  use std::num::NonZeroU128;
+  use core::cell::Cell;
+  use core::num::NonZeroU128;
+
   use crate::Rng;
 
   std::thread_local! {
@@ -437,10 +443,11 @@ pub mod thread_local {
   {
     RNG.with(|cell| {
       let mut rng =
-        if let Some(s) = cell.get() {
-          Rng::from_state(s)
-        } else {
-          Rng::from_entropy()
+        match cell.get() {
+          None =>
+            Rng::from_operating_system(),
+          Some(s) =>
+            Rng::from_state(s),
         };
       let x = f(&mut rng);
       cell.set(Some(rng.state()));

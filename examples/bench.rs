@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 use dandelion::Rng as Dandelion;
-use pcg_rand::OneseqDXsM12864 as PcgDxsm128;
+use rand_pcg::Lcg128CmDxsm64;
 use rand_xoshiro::Xoroshiro128PlusPlus;
 use rand::Rng as _;
 use rand::RngCore as _;
@@ -44,19 +44,19 @@ impl Rng for Dandelion {
   fn bytes(&mut self, buf: &mut [u8]) { self.bytes(buf) }
 }
 
-impl Rng for PcgDxsm128 {
+impl Rng for Lcg128CmDxsm64 {
   fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn u64(&mut self) -> u64 { self.gen() }
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.gen_range(lo ..= hi) }
-  fn f64(&mut self) -> f64 { self.gen() }
+  fn u64(&mut self) -> u64 { self.random() }
+  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  fn f64(&mut self) -> f64 { self.random() }
   fn bytes(&mut self, buf: &mut [u8]) { self.fill_bytes(buf) }
 }
 
 impl Rng for Xoroshiro128PlusPlus {
   fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn u64(&mut self) -> u64 { self.gen() }
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.gen_range(lo ..= hi) }
-  fn f64(&mut self) -> f64 { self.gen() }
+  fn u64(&mut self) -> u64 { self.random() }
+  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  fn f64(&mut self) -> f64 { self.random() }
   fn bytes(&mut self, buf: &mut [u8]) { self.fill_bytes(buf) }
 }
 
@@ -142,15 +142,50 @@ fn fill_8<T: Rng>(rng: &mut T, buf: &mut [Box<[u8]>; INNER]) {
 }
 
 #[inline(never)]
-fn go<T: Rng>(name: &str) {
+fn go<T: Rng>(
+    name: &str,
+    buf_0: &mut [u64; INNER],
+    buf_1: &mut [f64; INNER],
+    buf_2: &mut [u8; INNER * 8],
+    buf_3: &mut [Box<[u8]>; INNER],
+  )
+{
   let lo = 0;
   let hi = 0x1100_0000_0000_0000;
 
-  let mut buf_0 = [0_u64; INNER];
-  let mut buf_2 = [0_f64; INNER];
-  let mut buf_3 = [0_u8; INNER * 8];
+  let mut rng = T::from_u64(0);
 
-  let mut buf_4: [Box<[u8]>; INNER] = {
+  let e0 = timeit(|| fill_0(&mut rng, buf_0));
+  let e1 = timeit(|| fill_1(&mut rng, buf_0));
+  let e2 = timeit(|| fill_2(&mut rng, buf_0, lo, hi));
+  let e3 = timeit(|| fill_3(&mut rng, buf_0, lo, hi));
+  let e4 = timeit(|| fill_4(&mut rng, buf_1));
+  let e5 = timeit(|| fill_5(&mut rng, buf_1));
+  let e6 = timeit(|| fill_6(&mut rng, buf_2));
+  let e7 = timeit(|| fill_7(&mut rng, buf_3));
+  let e8 = timeit(|| fill_8(&mut rng, buf_3));
+
+  println!("{}", name);
+  println!("{:6.3} ns/word - u64", e0 / COUNT as f64);
+  println!("{:6.3} ns/word - u64 noinline", e1 / COUNT as f64);
+  println!("{:6.3} ns/word - between_u64", e2 / COUNT as f64);
+  println!("{:6.3} ns/word - between_u64 noinline", e3 / COUNT as f64);
+  println!("{:6.3} ns/word - f64", e4 / COUNT as f64);
+  println!("{:6.3} ns/word - f64 noinline", e5 / COUNT as f64);
+  println!("{:6.3} ns/word - bytes large fill", e6 / COUNT as f64);
+  println!("{:6.3} ns/word - bytes small fill", e7 / COUNT as f64);
+  println!("{:6.3} ns/word - bytes small fill noinline", e8 / COUNT as f64);
+  println!("");
+}
+
+fn main() {
+  let buf_0 = &mut [0_u64; INNER];
+
+  let buf_1 = &mut [0_f64; INNER];
+
+  let buf_2 = &mut [0_u8; INNER * 8];
+
+  let buf_3: &mut [Box<[u8]>; INNER] = &mut {
     let mut rng: u64 = 0x93c4_67e3_7db0_c7a5;
     core::array::from_fn(|_| {
       rng = rng ^ rng << 7;
@@ -159,34 +194,11 @@ fn go<T: Rng>(name: &str) {
     })
   };
 
-  let mut rng = T::from_u64(0);
-
-  let e0 = timeit(|| fill_0(&mut rng, &mut buf_0));
-  let e1 = timeit(|| fill_1(&mut rng, &mut buf_0));
-  let e2 = timeit(|| fill_2(&mut rng, &mut buf_0, lo, hi));
-  let e3 = timeit(|| fill_3(&mut rng, &mut buf_0, lo, hi));
-  let e4 = timeit(|| fill_4(&mut rng, &mut buf_2));
-  let e5 = timeit(|| fill_5(&mut rng, &mut buf_2));
-  let e6 = timeit(|| fill_6(&mut rng, &mut buf_3));
-  let e7 = timeit(|| fill_7(&mut rng, &mut buf_4));
-  let e8 = timeit(|| fill_8(&mut rng, &mut buf_4));
-
-  println!("{}", name);
-  println!("{:6.3} ns / word - u64", e0 / COUNT as f64);
-  println!("{:6.3} ns / word - u64 noinline", e1 / COUNT as f64);
-  println!("{:6.3} ns / word - between_u64", e2 / COUNT as f64);
-  println!("{:6.3} ns / word - between_u64 noinline", e3 / COUNT as f64);
-  println!("{:6.3} ns / word - f64", e4 / COUNT as f64);
-  println!("{:6.3} ns / word - f64 noinline", e5 / COUNT as f64);
-  println!("{:6.3} ns / word - bytes bulk fill", e6 / COUNT as f64);
-  println!("{:6.3} ns / word - bytes short", e7 / COUNT as f64);
-  println!("{:6.3} ns / word - bytes short noinline", e8 / COUNT as f64);
-  println!("");
-}
-
-fn main() {
   warmup();
-  go::<Dandelion>("dandelion");
-  go::<PcgDxsm128>("pcgdxsm128");
-  go::<Xoroshiro128PlusPlus>("xoroshiro128++");
+
+  go::<Dandelion>("dandelion", buf_0, buf_1, buf_2, buf_3);
+
+  go::<Lcg128CmDxsm64>("pcgdxsm128", buf_0, buf_1, buf_2, buf_3);
+
+  go::<Xoroshiro128PlusPlus>("xoroshiro128++", buf_0, buf_1, buf_2, buf_3);
 }

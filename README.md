@@ -1,6 +1,6 @@
 Dandelion is a high performance non-cryptographic random number generator
 suitable for algorithms applied to simulation, testing, statistics, and data
-structures. It has a state of 128 bits, and a cycle length of 2¹²⁸ - 1.
+structures. It has a state of 128 bits and a cycle length of 2¹²⁸ - 1.
 
 # Example
 
@@ -146,3 +146,68 @@ multiply and then xors the lower and upper halves. This does a lot of mixing
 while being relatively cheap on modern CPUs in phones, laptops, and servers.
 This kind of mixer was inspired by similar constructions in the mum-hash and
 wyhash libraries.
+
+# Benchmarks
+
+We compare dandelion with two other non-cryptographic random number generators
+that each have 128-bit states and no known statistical flaws:
+
+- the pcg-dxsm algorithm with a 64-bit multiplier, as implemented in the
+  `rand_pcg` crate, and
+
+- the xoroshiro128++ algorithm, as implemented in `rand_xoshiro` crate.
+
+Both alternatives use the `rand` crate to implement generating integers in
+a range, generating floats, and filling byte buffers.
+
+The benchmarks labeled "noinline" ensure that random number generation is not
+inlined into the benchmark loop. This measures performance in a scenario where
+certain parts of random number generation cannot be amortized, as can happen
+when random number generation is embedded within a larger algorithm. For
+instance, the compiler might not be able to do store-to-load forwarding of the
+generator state or to hoist loading of large constants.
+
+The benchmarks were run on an Apple M1.
+
+```text
+dandelion
+1.018 ns/word - u64
+2.364 ns/word - u64 noinline
+1.994 ns/word - between_u64
+3.504 ns/word - between_u64 noinline
+1.042 ns/word - f64
+2.448 ns/word - f64 noinline
+0.916 ns/word - bytes large fill
+2.679 ns/word - bytes small fill
+2.978 ns/word - bytes small fill noinline
+
+pcgdxsm128
+1.647 ns/word - u64
+4.072 ns/word - u64 noinline
+2.394 ns/word - between_u64
+4.897 ns/word - between_u64 noinline
+1.657 ns/word - f64
+4.071 ns/word - f64 noinline
+1.633 ns/word - bytes large fill
+3.624 ns/word - bytes small fill
+5.078 ns/word - bytes small fill noinline
+
+xoroshiro128++
+1.472 ns/word - u64
+3.304 ns/word - u64 noinline
+3.975 ns/word - between_u64
+3.848 ns/word - between_u64 noinline
+1.495 ns/word - f64
+3.423 ns/word - f64 noinline
+1.466 ns/word - bytes large fill
+3.465 ns/word - bytes small fill
+4.843 ns/word - bytes small fill noinline
+```
+
+# Statistical Tests
+
+Dandelion passes PractRand with 2 TB of output, and there is no reason to
+believe that the test is particularly close to failing.
+
+The `examples/rng` executable writes random bytes to stdout, which you can use
+to run your own statistical tests.
