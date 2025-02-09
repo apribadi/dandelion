@@ -12,6 +12,16 @@ let y = rng.between_u64(1, 6);
 let z = rng.f64();
 ```
 
+# Cargo Features
+
+- `getrandom`: Adds `Rng::from_operating_system`, which uses the `getrandom`
+  crate to get a seed from the operating system.
+
+- `rand_core`: Implements the traits `RngCore` and `SeedableRng` from the
+  `rand_core` crate.
+
+- `thread_local`: Adds a thread-local random number generator. Requires `std`.
+
 # Algorithm
 
 The core of Dandelion's random number generator has two parts: a state
