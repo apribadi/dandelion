@@ -133,10 +133,8 @@ impl Rng {
     //   ccmp x9, x8, #0, ne
     //   cset w0, lo
     //
-    // However on x86-64, the saturating cast is currently compiled a bit
-    // inefficiently by rustc + llvm, with an unnecessary check of the upper
-    // bound, as vcvttsd2ust should already produce u64::MAX for any out of
-    // range value.
+    // On x86-64, the bounds checks against 0.0 and 2.0 ** 64 are performed
+    // directly.
     let n = (p * f64::from_bits(0x43f0_0000_0000_0000)) as u64;
     let x = self.u64();
     x < n || n == u64::MAX
@@ -472,7 +470,10 @@ impl Rng {
   }
 
   /// Fills the provided buffer with independent uniformly distributed bytes.
-  /// The caller must guarantee that it is valid to write those bytes.
+  ///
+  /// # Safety
+  ///
+  /// It must be valid to write `len` arbitrary bytes at `dst`.
   pub unsafe fn fill_unchecked(&mut self, dst: *mut u8, len: usize) {
     unsafe { self.fill_unchecked_inlined(dst, len) };
   }
@@ -536,10 +537,11 @@ impl rand_core::TryRng for Rng {
 impl rand_core::SeedableRng for Rng {
   type Seed = [u8; 16];
 
+  #[inline(always)]
   fn from_seed(seed: Self::Seed) -> Self {
     let s = 1 | u128::from_le_bytes(seed);
     let s = unsafe { NonZeroU128::new_unchecked(s) };
-    Self { state: s }
+    Self::from_state(s)
   }
 
   fn seed_from_u64(seed: u64) -> Self {
@@ -547,11 +549,8 @@ impl rand_core::SeedableRng for Rng {
   }
 
   fn from_rng<T: rand_core::Rng + ?Sized>(g: &mut T) -> Self {
-    let x = g.next_u64();
-    let y = g.next_u64();
-    let s = 1 | concat(x, y);
-    let s = unsafe { NonZeroU128::new_unchecked(s) };
-    Self { state: s }
+    let Ok(x) = Self::try_from_rng(g);
+    x
   }
 
   fn try_from_rng<T: rand_core::TryRng + ?Sized>(g: &mut T) -> Result<Self, T::Error> {
@@ -559,7 +558,7 @@ impl rand_core::SeedableRng for Rng {
     let y = g.try_next_u64()?;
     let s = 1 | concat(x, y);
     let s = unsafe { NonZeroU128::new_unchecked(s) };
-    Ok(Self { state: s })
+    Ok(Self::from_state(s))
   }
 
   // We keep the default implementations of `fork` and `try_fork`.
@@ -669,33 +668,33 @@ pub mod thread_local {
   }
 
   /// See [Rng::range_i32].
-  pub fn range_i32(lo: i32, hi: i32) -> i32 {
-    with(|g| g.range_i32(lo, hi))
+  pub fn range_i32(a: i32, b: i32) -> i32 {
+    with(|g| g.range_i32(a, b))
   }
 
   /// See [Rng::range_i64].
-  pub fn range_i64(lo: i64, hi: i64) -> i64 {
-    with(|g| g.range_i64(lo, hi))
+  pub fn range_i64(a: i64, b: i64) -> i64 {
+    with(|g| g.range_i64(a, b))
   }
 
   /// See [Rng::range_isize].
-  pub fn range_isize(lo: isize, hi: isize) -> isize {
-    with(|g| g.range_isize(lo, hi))
+  pub fn range_isize(a: isize, b: isize) -> isize {
+    with(|g| g.range_isize(a, b))
   }
 
   /// See [Rng::range_u32].
-  pub fn range_u32(lo: u32, hi: u32) -> u32 {
-    with(|g| g.range_u32(lo, hi))
+  pub fn range_u32(a: u32, b: u32) -> u32 {
+    with(|g| g.range_u32(a, b))
   }
 
   /// See [Rng::range_u64].
-  pub fn range_u64(lo: u64, hi: u64) -> u64 {
-    with(|g| g.range_u64(lo, hi))
+  pub fn range_u64(a: u64, b: u64) -> u64 {
+    with(|g| g.range_u64(a, b))
   }
 
   /// See [Rng::range_usize].
-  pub fn range_usize(lo: usize, hi: usize) -> usize {
-    with(|g| g.range_usize(lo, hi))
+  pub fn range_usize(a: usize, b: usize) -> usize {
+    with(|g| g.range_usize(a, b))
   }
 
   /// See [Rng::f32].

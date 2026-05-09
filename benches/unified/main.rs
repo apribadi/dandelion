@@ -5,11 +5,11 @@ mod doubledandelion;
 
 use dandelion::Rng;
 use divan::Bencher;
-use divan::black_box;
 use doubledandelion::DoubleDandelion;
 use rand_pcg::Lcg128CmDxsm64;
 use rand_xoshiro::Xoroshiro128PlusPlus;
 use rngs::RngForBench;
+use std::hint::black_box;
 
 const N: usize = 1_000;
 const LO: u64 = 1;
