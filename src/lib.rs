@@ -233,16 +233,13 @@ impl Rng {
     let a = mulhi(x, m);
     let b = x.wrapping_mul(m);
     if b.overflowing_add(n).1 {
-      debug_assert!(m != 0);
       let mut r = b;
       loop {
         let y = self.u64();
         let c = mulhi(y, m);
         let d = y.wrapping_mul(m);
-        let s = r.overflowing_add(c);
-        let w = s.0;
-        let p = s.1;
-        if w != u64::MAX { break (a + p as u64) as u32 }
+        let v = r.overflowing_add(c);
+        if v.0 != u64::MAX { break (a + v.1 as u64) as u32 }
         r = d;
         cold_path();
       }
@@ -268,10 +265,8 @@ impl Rng {
         let y = self.u64();
         let c = mulhi(y, m);
         let d = y.wrapping_mul(m);
-        let s = r.overflowing_add(c);
-        let w = s.0;
-        let p = s.1;
-        if w != u64::MAX { break a + p as u64 }
+        let v = r.overflowing_add(c);
+        if v.0 != u64::MAX { break a + v.1 as u64 }
         // NB: We get here with negligible probability, but we include the loop
         // anyway to prevent the compiler from doing the pessimization of
         // if-converting the control flow away.
