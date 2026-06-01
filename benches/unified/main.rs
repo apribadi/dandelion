@@ -24,7 +24,7 @@ fn main() {
 #[divan::bench]
 fn bench_thread_local_u64() -> u64 {
   let mut a = 0u64;
-  for _ in 0 .. N { a ^= dandelion::thread_local::u64() };
+  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u64>() };
   a
 }
 
@@ -32,7 +32,7 @@ fn bench_thread_local_u64() -> u64 {
 #[divan::bench]
 fn bench_thread_local_u128() -> u128 {
   let mut a = 0u128;
-  for _ in 0 .. N { a ^= dandelion::thread_local::u128() };
+  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u128>() };
   a
 }
 

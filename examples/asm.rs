@@ -18,82 +18,93 @@ pub fn bernoulli(g: &mut Rng, p: f64) -> bool {
 
 #[inline(never)]
 pub fn bool(g: &mut Rng) -> bool {
-  g.bool()
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn u32(g: &mut Rng) -> u32 {
-  g.u32()
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn u64(g: &mut Rng) -> u64 {
-  g.u64()
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn u128(g: &mut Rng) -> u128 {
-  g.u128()
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn bounded_u8(g: &mut Rng, n: u8) -> u8 {
+  g.bounded(n)
+}
+
+#[inline(never)]
+pub fn bounded_u16(g: &mut Rng, n: u16) -> u16 {
+  g.bounded(n)
 }
 
 #[inline(never)]
 pub fn bounded_u32(g: &mut Rng, n: u32) -> u32 {
-  g.bounded_u32(n)
+  g.bounded(n)
 }
 
 #[inline(never)]
 pub fn bounded_u64(g: &mut Rng, n: u64) -> u64 {
-  g.bounded_u64(n)
+  g.bounded(n)
 }
 
 #[inline(never)]
 pub fn bounded_u64_zero(g: &mut Rng) -> u64 {
-  g.bounded_u64(0)
+  g.bounded(0)
 }
 
 #[inline(never)]
 pub fn bounded_u64_255(g: &mut Rng) -> u64 {
-  g.bounded_u64(255)
+  // g.upto(255)
+  g.sample(..= 255)
 }
 
 #[inline(never)]
 pub fn bounded_usize(g: &mut Rng, n: usize) -> usize {
-  g.bounded_usize(n)
+  g.bounded(n)
 }
 
 #[inline(never)]
-pub fn range_isize(g: &mut Rng, lo: isize, hi: isize) -> isize {
-  g.range_isize(lo, hi)
+pub fn between_isize(g: &mut Rng, lo: isize, hi: isize) -> isize {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn range_u32(g: &mut Rng, lo: u32, hi: u32) -> u32 {
-  g.range_u32(lo, hi)
+pub fn between_u32(g: &mut Rng, lo: u32, hi: u32) -> u32 {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn range_u64(g: &mut Rng, lo: u64, hi: u64) -> u64 {
-  g.range_u64(lo, hi)
+pub fn between_u64(g: &mut Rng, lo: u64, hi: u64) -> u64 {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn range_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
-  g.range_usize(lo, hi)
+pub fn between_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
 pub fn non_zero_u32(g: &mut Rng) -> NonZeroU32 {
-  g.non_zero_u32()
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn non_zero_u64(g: &mut Rng) -> NonZeroU64 {
-  g.non_zero_u64()
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn non_zero_u128(g: &mut Rng) -> NonZeroU128 {
-  g.non_zero_u128()
+  g.uniform()
 }
 
 #[inline(never)]
@@ -118,12 +129,18 @@ pub fn biunit_f64(g: &mut Rng) -> f64 {
 
 #[inline(never)]
 pub fn byte_array_32(g: &mut Rng) -> [u8; 32] {
-  g.byte_array()
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn shuffle(g: &mut Rng, a: &mut [u32]) {
   g.shuffle(a)
+}
+
+#[cfg(feature = "thread_local")]
+#[inline(never)]
+pub fn thread_local_u64() -> u64 {
+  dandelion::thread_local::uniform()
 }
 
 #[cfg(feature = "rand_core")]

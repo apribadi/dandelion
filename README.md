@@ -15,8 +15,8 @@ the performance of surrounding code.
 use dandelion::Rng;
 use std::num::NonZeroU128;
 let mut g = Rng::new(NonZeroU128::MIN);
-let a = g.u64();
-let b = g.range_u64(1, 6);
+let a = g.sample::<u64>(..);
+let b = g.sample::<u64>(1 ..= 6);
 let c = g.f64();
 let d = g.bernoulli(0.75);
 assert!(a == 11430558048722533601);

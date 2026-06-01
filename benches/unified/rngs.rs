@@ -30,8 +30,8 @@ pub(crate) trait RngForBench: Clone {
 
 impl RngForBench for Rng {
   fn from_u64(n: u64) -> Self { Self::from_u64(n) }
-  fn u64(&mut self) -> u64 { self.u64() }
-  fn range_u64(&mut self, lo: u64, hi: u64) -> u64 { self.range_u64(lo, hi) }
+  fn u64(&mut self) -> u64 { self.uniform() }
+  fn range_u64(&mut self, lo: u64, hi: u64) -> u64 { self.between(lo, hi) }
   fn f64(&mut self) -> f64 { self.f64() }
   fn bernoulli(&mut self, p: f64) -> bool { self.bernoulli(p) }
   fn fill(&mut self, buf: &mut [u8]) { self.fill(buf) }

@@ -8,6 +8,8 @@ use std::array;
 use std::fmt::Write;
 use std::mem::MaybeUninit;
 use std::num::NonZeroU128;
+use std::num::NonZeroU32;
+use std::num::NonZeroU64;
 
 #[test]
 fn test_api() {
@@ -20,25 +22,25 @@ fn test_api() {
   write!(&mut out, "{:?}\n", Rng::from_state(NonZeroU128::MIN));
   write!(&mut out, "{}\n", rng.state());
   write!(&mut out, "{}\n", rng.bernoulli(0.5));
-  write!(&mut out, "{}\n", rng.bool());
-  write!(&mut out, "{}\n", rng.i32());
-  write!(&mut out, "{}\n", rng.i64());
-  write!(&mut out, "{}\n", rng.i128());
-  write!(&mut out, "{}\n", rng.u32());
-  write!(&mut out, "{}\n", rng.u64());
-  write!(&mut out, "{}\n", rng.u128());
-  write!(&mut out, "{}\n", rng.non_zero_u32());
-  write!(&mut out, "{}\n", rng.non_zero_u64());
-  write!(&mut out, "{}\n", rng.non_zero_u128());
-  write!(&mut out, "{}\n", rng.bounded_u32(5));
-  write!(&mut out, "{}\n", rng.bounded_u64(5));
-  write!(&mut out, "{}\n", rng.bounded_usize(5));
-  write!(&mut out, "{}\n", rng.range_i32(1, 6));
-  write!(&mut out, "{}\n", rng.range_i64(1, 6));
-  write!(&mut out, "{}\n", rng.range_isize(1, 6));
-  write!(&mut out, "{}\n", rng.range_u32(1, 6));
-  write!(&mut out, "{}\n", rng.range_u64(1, 6));
-  write!(&mut out, "{}\n", rng.range_usize(1, 6));
+  write!(&mut out, "{}\n", rng.uniform::<bool>());
+  write!(&mut out, "{}\n", rng.uniform::<i32>());
+  write!(&mut out, "{}\n", rng.uniform::<i64>());
+  write!(&mut out, "{}\n", rng.uniform::<i128>());
+  write!(&mut out, "{}\n", rng.uniform::<u32>());
+  write!(&mut out, "{}\n", rng.uniform::<u64>());
+  write!(&mut out, "{}\n", rng.uniform::<u128>());
+  write!(&mut out, "{}\n", rng.uniform::<NonZeroU32>());
+  write!(&mut out, "{}\n", rng.uniform::<NonZeroU64>());
+  write!(&mut out, "{}\n", rng.uniform::<NonZeroU128>());
+  write!(&mut out, "{}\n", rng.bounded::<u32>(5));
+  write!(&mut out, "{}\n", rng.bounded::<u64>(5));
+  write!(&mut out, "{}\n", rng.bounded::<usize>(5));
+  write!(&mut out, "{}\n", rng.between::<i32>(1, 6));
+  write!(&mut out, "{}\n", rng.between::<i64>(1, 6));
+  write!(&mut out, "{}\n", rng.between::<isize>(1, 6));
+  write!(&mut out, "{}\n", rng.between::<u32>(1, 6));
+  write!(&mut out, "{}\n", rng.between::<u64>(1, 6));
+  write!(&mut out, "{}\n", rng.between::<usize>(1, 6));
   write!(&mut out, "{}\n", rng.f32());
   write!(&mut out, "{}\n", rng.f64());
   write!(&mut out, "{}\n", rng.biunit_f32());
@@ -46,7 +48,7 @@ fn test_api() {
   write!(&mut out, "{:?}\n", { rng.fill(&mut buf); buf });
   write!(&mut out, "{:?}\n", unsafe { rng.fill_unchecked(buf.as_mut_ptr(), buf.len()); buf });
   write!(&mut out, "{:?}\n", rng.fill_uninit(&mut buf_uninit));
-  write!(&mut out, "{:?}\n", rng.byte_array::<9>());
+  write!(&mut out, "{:?}\n", rng.uniform::<[u8; 9]>());
 
   expect![[r#"
       Rng { .. }
@@ -109,25 +111,25 @@ fn test_api_thread_local() {
   let mut buf = [0u8; 21];
   let mut buf_uninit = [MaybeUninit::uninit(); 21];
   let _ = dandelion::thread_local::bernoulli(0.5);
-  let _ = dandelion::thread_local::bool();
-  let _ = dandelion::thread_local::i32();
-  let _ = dandelion::thread_local::i64();
-  let _ = dandelion::thread_local::i128();
-  let _ = dandelion::thread_local::u32();
-  let _ = dandelion::thread_local::u64();
-  let _ = dandelion::thread_local::u128();
-  let _ = dandelion::thread_local::non_zero_u32();
-  let _ = dandelion::thread_local::non_zero_u64();
-  let _ = dandelion::thread_local::non_zero_u128();
-  let _ = dandelion::thread_local::bounded_u32(5);
-  let _ = dandelion::thread_local::bounded_u64(5);
-  let _ = dandelion::thread_local::bounded_usize(5);
-  let _ = dandelion::thread_local::range_i32(1, 6);
-  let _ = dandelion::thread_local::range_i64(1, 6);
-  let _ = dandelion::thread_local::range_isize(1, 6);
-  let _ = dandelion::thread_local::range_u32(1, 6);
-  let _ = dandelion::thread_local::range_u64(1, 6);
-  let _ = dandelion::thread_local::range_usize(1, 6);
+  let _ = dandelion::thread_local::uniform::<bool>();
+  let _ = dandelion::thread_local::uniform::<i32>();
+  let _ = dandelion::thread_local::uniform::<i64>();
+  let _ = dandelion::thread_local::uniform::<i128>();
+  let _ = dandelion::thread_local::uniform::<u32>();
+  let _ = dandelion::thread_local::uniform::<u64>();
+  let _ = dandelion::thread_local::uniform::<u128>();
+  let _ = dandelion::thread_local::uniform::<NonZeroU32>();
+  let _ = dandelion::thread_local::uniform::<NonZeroU64>();
+  let _ = dandelion::thread_local::uniform::<NonZeroU128>();
+  let _ = dandelion::thread_local::bounded::<u32>(5);
+  let _ = dandelion::thread_local::bounded::<u64>(5);
+  let _ = dandelion::thread_local::bounded::<usize>(5);
+  let _ = dandelion::thread_local::between::<i32>(1, 6);
+  let _ = dandelion::thread_local::between::<i64>(1, 6);
+  let _ = dandelion::thread_local::between::<isize>(1, 6);
+  let _ = dandelion::thread_local::between::<u32>(1, 6);
+  let _ = dandelion::thread_local::between::<u64>(1, 6);
+  let _ = dandelion::thread_local::between::<usize>(1, 6);
   let _ = dandelion::thread_local::f32();
   let _ = dandelion::thread_local::f64();
   let _ = dandelion::thread_local::biunit_f32();
@@ -135,14 +137,14 @@ fn test_api_thread_local() {
   dandelion::thread_local::fill(&mut buf);
   unsafe { dandelion::thread_local::fill_unchecked(buf.as_mut_ptr(), buf.len()) };
   let _ = dandelion::thread_local::fill_uninit(&mut buf_uninit);
-  let _ = dandelion::thread_local::byte_array::<21>();
+  let _ = dandelion::thread_local::uniform::<[u8; 21]>();
 }
 
 #[test]
 fn test_vectors() {
   let mut out = String::new();
   let mut rng = Rng::from_state(NonZeroU128::MIN);
-  for _ in 0 .. 10 { write!(&mut out, "{:#018x}\n", rng.u64()); }
+  for _ in 0 .. 10 { write!(&mut out, "{:#018x}\n", rng.uniform::<u64>()); }
 
   expect![[r#"
       0x0000000000000001
@@ -158,7 +160,7 @@ fn test_vectors() {
   "#]].assert_eq(out.drain(..).as_str());
 
   let mut rng = Rng::new(NonZeroU128::MIN);
-  for _ in 0 .. 10 { write!(&mut out, "{:#018x}\n", rng.u64()); }
+  for _ in 0 .. 10 { write!(&mut out, "{:#018x}\n", rng.uniform::<u64>()); }
 
   expect![[r#"
       0x9ea17ffbce96bce1
@@ -174,12 +176,12 @@ fn test_vectors() {
   "#]].assert_eq(out.drain(..).as_str());
 
   let mut rng = Rng::new(NonZeroU128::MIN);
-  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.bounded_u32(5)));
-  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.bounded_u64(5)));
-  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.range_i32(1, 6)));
-  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.range_i64(1, 6)));
-  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.range_u32(1, 6)));
-  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.range_u64(1, 6)));
+  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.bounded::<u32>(5)));
+  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.bounded::<u64>(5)));
+  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.between::<i32>(1, 6)));
+  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.between::<i64>(1, 6)));
+  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.between::<u32>(1, 6)));
+  write!(&mut out, "{:?}\n", array::from_fn::<_, 25, _>(|_| rng.between::<u64>(1, 6)));
 
   expect![[r#"
       [3, 0, 2, 1, 0, 2, 0, 2, 1, 2, 4, 5, 2, 1, 1, 1, 4, 1, 3, 0, 3, 1, 3, 1, 4]
