@@ -1,3 +1,7 @@
+# 0.3.2
+
+- Added const to many methods of `Rng`.
+
 # 0.3.0
 
 - Changed both state transition and output functions in the core generator
