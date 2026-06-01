@@ -10,8 +10,10 @@ use core::fmt;
 use core::hint::cold_path;
 use core::mem::MaybeUninit;
 use core::num::NonZeroU128;
+use core::num::NonZeroU16;
 use core::num::NonZeroU32;
 use core::num::NonZeroU64;
+use core::num::NonZeroU8;
 
 /// A high performance non-cryptographic random number generator.
 #[derive(Clone)]
@@ -145,6 +147,18 @@ impl Rng {
     self.i64() < 0
   }
 
+  /// Samples a `i8` from the uniform distribution.
+  #[inline(always)]
+  pub const fn i8(&mut self) -> i8 {
+    self.u64() as i8
+  }
+
+  /// Samples a `i16` from the uniform distribution.
+  #[inline(always)]
+  pub const fn i16(&mut self) -> i16 {
+    self.u64() as i16
+  }
+
   /// Samples a `i32` from the uniform distribution.
   #[inline(always)]
   pub const fn i32(&mut self) -> i32 {
@@ -161,6 +175,18 @@ impl Rng {
   #[inline(always)]
   pub const fn i128(&mut self) -> i128 {
     self.u128() as i128
+  }
+
+  /// Samples a `u8` from the uniform distribution.
+  #[inline(always)]
+  pub const fn u8(&mut self) -> u8 {
+    self.u64() as u8
+  }
+
+  /// Samples a `u16` from the uniform distribution.
+  #[inline(always)]
+  pub const fn u16(&mut self) -> u16 {
+    self.u64() as u16
   }
 
   /// Samples a `u32` from the uniform distribution.
@@ -188,6 +214,26 @@ impl Rng {
     let x = self.u64();
     let y = self.u64();
     concat(x, y)
+  }
+
+  /// Samples a `NonZeroU8` from the uniform distribution.
+  #[inline(always)]
+  pub const fn non_zero_u8(&mut self) -> NonZeroU8 {
+    loop {
+      if let Some(x) = NonZeroU8::new(self.u8()) {
+        break x
+      }
+    }
+  }
+
+  /// Samples a `NonZeroU16` from the uniform distribution.
+  #[inline(always)]
+  pub const fn non_zero_u16(&mut self) -> NonZeroU16 {
+    loop {
+      if let Some(x) = NonZeroU16::new(self.u16()) {
+        break x
+      }
+    }
   }
 
   /// Samples a `NonZeroU32` from the uniform distribution.
@@ -218,6 +264,30 @@ impl Rng {
         break x
       }
     }
+  }
+
+  /// Samples a `u8` from the uniform distribution over the range `0 ... n`.
+  ///
+  /// The upper bound is inclusive.
+  #[inline(always)]
+  pub const fn bounded_u8(&mut self, n: u8) -> u8 {
+    let x = self.u64();
+    let n = n as u64;
+    let m = n + 1;
+    let a = mulhi(x, m);
+    a as u8
+  }
+
+  /// Samples a `u16` from the uniform distribution over the range `0 ... n`.
+  ///
+  /// The upper bound is inclusive.
+  #[inline(always)]
+  pub const fn bounded_u16(&mut self, n: u16) -> u16 {
+    let x = self.u64();
+    let n = n as u64;
+    let m = n + 1;
+    let a = mulhi(x, m);
+    a as u16
   }
 
   /// Samples a `u32` from the uniform distribution over the range `0 ... n`.
@@ -289,6 +359,24 @@ impl Rng {
     }
   }
 
+  /// Samples a `i8` from the uniform distribution over the range `a ... b`.
+  ///
+  /// The lower and upper bounds are inclusive, and the range can wrap around
+  /// from `i8::MAX` to `i8::MIN`.
+  #[inline(always)]
+  pub const fn range_i8(&mut self, a: i8, b: i8) -> i8 {
+    self.range_u8(a as u8, b as u8) as i8
+  }
+
+  /// Samples a `i16` from the uniform distribution over the range `a ... b`.
+  ///
+  /// The lower and upper bounds are inclusive, and the range can wrap around
+  /// from `i16::MAX` to `i16::MIN`.
+  #[inline(always)]
+  pub const fn range_i16(&mut self, a: i16, b: i16) -> i16 {
+    self.range_u16(a as u16, b as u16) as i16
+  }
+
   /// Samples a `i32` from the uniform distribution over the range `a ... b`.
   ///
   /// The lower and upper bounds are inclusive, and the range can wrap around
@@ -314,6 +402,24 @@ impl Rng {
   #[inline(always)]
   pub const fn range_isize(&mut self, a: isize, b: isize) -> isize {
     self.range_usize(a as usize, b as usize) as isize
+  }
+
+  /// Samples a `u8` from the uniform distribution over the range `a ... b`.
+  ///
+  /// The lower and upper bounds are inclusive, and the range can wrap around
+  /// from `u8::MAX` to `u8::MIN`.
+  #[inline(always)]
+  pub const fn range_u8(&mut self, a: u8, b: u8) -> u8 {
+    a.wrapping_add(self.bounded_u8(b.wrapping_sub(a)))
+  }
+
+  /// Samples a `u16` from the uniform distribution over the range `a ... b`.
+  ///
+  /// The lower and upper bounds are inclusive, and the range can wrap around
+  /// from `u16::MAX` to `u16::MIN`.
+  #[inline(always)]
+  pub const fn range_u16(&mut self, a: u16, b: u16) -> u16 {
+    a.wrapping_add(self.bounded_u16(b.wrapping_sub(a)))
   }
 
   /// Samples a `u32` from the uniform distribution over the range `a ... b`.
