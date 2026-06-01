@@ -8,7 +8,6 @@ use core::fmt::Debug;
 use core::fmt::Formatter;
 use core::fmt;
 use core::hint::cold_path;
-use core::hint::select_unpredictable;
 use core::mem::MaybeUninit;
 use core::num::NonZeroU128;
 use core::num::NonZeroU32;
@@ -116,7 +115,7 @@ impl Rng {
   /// A probability `p` <= 0 or NaN is treated as 0, and a probability `p` >= 1
   /// is treated as 1.
   #[inline(always)]
-  pub fn bernoulli(&mut self, p: f64) -> bool {
+  pub const fn bernoulli(&mut self, p: f64) -> bool {
     // The specification of the float-to-integer cast in Rust is such that
     // - rounding is toward zero,
     // - NaN produces zero, and
@@ -142,37 +141,37 @@ impl Rng {
 
   /// Samples a `bool` from the uniform distribution.
   #[inline(always)]
-  pub fn bool(&mut self) -> bool {
+  pub const fn bool(&mut self) -> bool {
     self.i64() < 0
   }
 
   /// Samples a `i32` from the uniform distribution.
   #[inline(always)]
-  pub fn i32(&mut self) -> i32 {
+  pub const fn i32(&mut self) -> i32 {
     self.u64() as i32
   }
 
   /// Samples a `i64` from the uniform distribution.
   #[inline(always)]
-  pub fn i64(&mut self) -> i64 {
+  pub const fn i64(&mut self) -> i64 {
     self.u64() as i64
   }
 
   /// Samples a `i128` from the uniform distribution.
   #[inline(always)]
-  pub fn i128(&mut self) -> i128 {
+  pub const fn i128(&mut self) -> i128 {
     self.u128() as i128
   }
 
   /// Samples a `u32` from the uniform distribution.
   #[inline(always)]
-  pub fn u32(&mut self) -> u32 {
+  pub const fn u32(&mut self) -> u32 {
     self.u64() as u32
   }
 
   /// Samples a `u64` from the uniform distribution.
   #[inline(always)]
-  pub fn u64(&mut self) -> u64 {
+  pub const fn u64(&mut self) -> u64 {
     // This is the core generator.
     let s = self.state.get();
     let x = lo(s);
@@ -185,7 +184,7 @@ impl Rng {
 
   /// Samples a `u128` from the uniform distribution.
   #[inline(always)]
-  pub fn u128(&mut self) -> u128 {
+  pub const fn u128(&mut self) -> u128 {
     let x = self.u64();
     let y = self.u64();
     concat(x, y)
@@ -193,7 +192,7 @@ impl Rng {
 
   /// Samples a `NonZeroU32` from the uniform distribution.
   #[inline(always)]
-  pub fn non_zero_u32(&mut self) -> NonZeroU32 {
+  pub const fn non_zero_u32(&mut self) -> NonZeroU32 {
     loop {
       if let Some(x) = NonZeroU32::new(self.u32()) {
         break x
@@ -203,7 +202,7 @@ impl Rng {
 
   /// Samples a `NonZeroU64` from the uniform distribution.
   #[inline(always)]
-  pub fn non_zero_u64(&mut self) -> NonZeroU64 {
+  pub const fn non_zero_u64(&mut self) -> NonZeroU64 {
     loop {
       if let Some(x) = NonZeroU64::new(self.u64()) {
         break x
@@ -213,7 +212,7 @@ impl Rng {
 
   /// Samples a `NonZeroU128` from the uniform distribution.
   #[inline(always)]
-  pub fn non_zero_u128(&mut self) -> NonZeroU128 {
+  pub const fn non_zero_u128(&mut self) -> NonZeroU128 {
     loop {
       if let Some(x) = NonZeroU128::new(self.u128()) {
         break x
@@ -225,7 +224,7 @@ impl Rng {
   ///
   /// The upper bound is inclusive.
   #[inline(always)]
-  pub fn bounded_u32(&mut self, n: u32) -> u32 {
+  pub const fn bounded_u32(&mut self, n: u32) -> u32 {
     // Cf. `bounded_u64`.
     let x = self.u64();
     let n = n as u64;
@@ -252,12 +251,12 @@ impl Rng {
   ///
   /// The upper bound is inclusive.
   #[inline(always)]
-  pub fn bounded_u64(&mut self, n: u64) -> u64 {
+  pub const fn bounded_u64(&mut self, n: u64) -> u64 {
     let x = self.u64();
     let m = n.wrapping_add(1);
     let a = mulhi(x, m);
     let b = x.wrapping_mul(m);
-    let u = select_unpredictable(m == 0, x, a);
+    let u = if m == 0 { x } else { a };
     if b.overflowing_add(n).1 {
       debug_assert!(m != 0);
       let mut r = b;
@@ -282,7 +281,7 @@ impl Rng {
   ///
   /// The upper bound is inclusive.
   #[inline(always)]
-  pub fn bounded_usize(&mut self, n: usize) -> usize {
+  pub const fn bounded_usize(&mut self, n: usize) -> usize {
     match const { usize::BITS } {
       32 => self.bounded_u32(n as u32) as usize,
       64 => self.bounded_u64(n as u64) as usize,
@@ -295,7 +294,7 @@ impl Rng {
   /// The lower and upper bounds are inclusive, and the range can wrap around
   /// from `i32::MAX` to `i32::MIN`.
   #[inline(always)]
-  pub fn range_i32(&mut self, a: i32, b: i32) -> i32 {
+  pub const fn range_i32(&mut self, a: i32, b: i32) -> i32 {
     self.range_u32(a as u32, b as u32) as i32
   }
 
@@ -304,7 +303,7 @@ impl Rng {
   /// The lower and upper bounds are inclusive, and the range can wrap around
   /// from `i64::MAX` to `i64::MIN`.
   #[inline(always)]
-  pub fn range_i64(&mut self, a: i64, b: i64) -> i64 {
+  pub const fn range_i64(&mut self, a: i64, b: i64) -> i64 {
     self.range_u64(a as u64, b as u64) as i64
   }
 
@@ -313,7 +312,7 @@ impl Rng {
   /// The lower and upper bounds are inclusive, and the range can wrap around
   /// from `isize::MAX` to `isize::MIN`.
   #[inline(always)]
-  pub fn range_isize(&mut self, a: isize, b: isize) -> isize {
+  pub const fn range_isize(&mut self, a: isize, b: isize) -> isize {
     self.range_usize(a as usize, b as usize) as isize
   }
 
@@ -322,7 +321,7 @@ impl Rng {
   /// The lower and upper bounds are inclusive, and the range can wrap around
   /// from `u32::MAX` to `u32::MIN`.
   #[inline(always)]
-  pub fn range_u32(&mut self, a: u32, b: u32) -> u32 {
+  pub const fn range_u32(&mut self, a: u32, b: u32) -> u32 {
     a.wrapping_add(self.bounded_u32(b.wrapping_sub(a)))
   }
 
@@ -331,7 +330,7 @@ impl Rng {
   /// The lower and upper bounds are inclusive, and the range can wrap around
   /// from `u64::MAX` to `u64::MIN`.
   #[inline(always)]
-  pub fn range_u64(&mut self, a: u64, b: u64) -> u64 {
+  pub const fn range_u64(&mut self, a: u64, b: u64) -> u64 {
     a.wrapping_add(self.bounded_u64(b.wrapping_sub(a)))
   }
 
@@ -340,7 +339,7 @@ impl Rng {
   /// The lower and upper bounds are inclusive, and the range can wrap around
   /// from `usize::MAX` to `usize::MIN`.
   #[inline(always)]
-  pub fn range_usize(&mut self, a: usize, b: usize) -> usize {
+  pub const fn range_usize(&mut self, a: usize, b: usize) -> usize {
     a.wrapping_add(self.bounded_usize(b.wrapping_sub(a)))
   }
 
@@ -356,7 +355,7 @@ impl Rng {
   ///
   /// Every output, including zero, has a positive sign bit.
   #[inline(always)]
-  pub fn f32(&mut self) -> f32 {
+  pub const fn f32(&mut self) -> f32 {
     let x = self.i64();
     let x = f32::from_bits(0x2000_0000) * (x as f32);
     x.abs()
@@ -374,7 +373,7 @@ impl Rng {
   ///
   /// Every output, including zero, has a positive sign bit.
   #[inline(always)]
-  pub fn f64(&mut self) -> f64 {
+  pub const fn f64(&mut self) -> f64 {
     // The conversion into a `f64` is two instructions on aarch64:
     //
     //   scvtf d0, x8, #63
@@ -395,7 +394,7 @@ impl Rng {
   /// - Round to the nearest multiple of 2⁻⁶².
   /// - Round to a `f32` using the default rounding mode.
   #[inline(always)]
-  pub fn biunit_f32(&mut self) -> f32 {
+  pub const fn biunit_f32(&mut self) -> f32 {
     let x = self.i64();
     let x = (x & 1) + (x >> 1);
     f32::from_bits(0x2080_0000) * (x as f32)
@@ -411,7 +410,7 @@ impl Rng {
   /// - Round to the nearest multiple of 2⁻⁶².
   /// - Round to a `f64` using the default rounding mode.
   #[inline(always)]
-  pub fn biunit_f64(&mut self) -> f64 {
+  pub const fn biunit_f64(&mut self) -> f64 {
     // The conversion into a `f64` is three instructions on aarch64:
     //
     //   and x1, x0, #0x1
@@ -424,7 +423,7 @@ impl Rng {
   }
 
   #[inline(always)]
-  unsafe fn fill_unchecked_inlined(&mut self, dst: *mut u8, len: usize) {
+  const unsafe fn fill_unchecked_inlined(&mut self, dst: *mut u8, len: usize) {
     let mut p = dst;
     let mut n = len;
     if n == 0 { return }
@@ -459,7 +458,7 @@ impl Rng {
   }
 
   /// Fills the provided buffer with independent uniformly distributed bytes.
-  pub fn fill(&mut self, dst: &mut [u8]) {
+  pub const fn fill(&mut self, dst: &mut [u8]) {
     let n = dst.len();
     unsafe { self.fill_unchecked(&raw mut *dst as _, n) };
   }
@@ -469,34 +468,37 @@ impl Rng {
   /// # Safety
   ///
   /// It must be valid to write `len` arbitrary bytes at `dst`.
-  pub unsafe fn fill_unchecked(&mut self, dst: *mut u8, len: usize) {
+  pub const unsafe fn fill_unchecked(&mut self, dst: *mut u8, len: usize) {
     unsafe { self.fill_unchecked_inlined(dst, len) };
   }
 
   /// Fills the provided buffer with independent uniformly distributed bytes,
   /// returning a reference to the initialized buffer. The returned buffer is a
   /// reference the same memory and has the same length as the input buffer.
-  pub fn fill_uninit<'a>(&mut self, dst: &'a mut [MaybeUninit<u8>]) -> &'a mut [u8] {
+  pub const fn fill_uninit<'a>(&mut self, dst: &'a mut [MaybeUninit<u8>]) -> &'a mut [u8] {
     let n = dst.len();
     unsafe { self.fill_unchecked(&raw mut *dst as _, n) };
     unsafe { dst.assume_init_mut() }
   }
 
   /// Samples an array of independent uniformly distributed bytes.
-  pub fn byte_array<const N: usize>(&mut self) -> [u8; N] {
+  pub const fn byte_array<const N: usize>(&mut self) -> [u8; N] {
     let mut buf = [0; N];
     unsafe { self.fill_unchecked_inlined(&raw mut buf as _, N) };
     buf
   }
 
   /// Shuffles a mutable slice in place with a random permutation.
-  pub fn shuffle<T>(&mut self, slice: &mut [T]) {
+  pub const fn shuffle<T>(&mut self, slice: &mut [T]) {
     let n = slice.len();
     if n >= 2 {
       let p = &raw mut *slice as *mut T;
-      for i in 1 .. n {
+      let mut i = 1;
+      loop {
         let j = self.bounded_usize(i);
         unsafe { p.add(i).swap(p.add(j)) };
+        i = i + 1;
+        if i == n { break }
       }
     }
   }
