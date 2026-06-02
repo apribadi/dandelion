@@ -22,17 +22,17 @@ pub fn bool(g: &mut Rng) -> bool {
 }
 
 #[inline(never)]
-pub fn u32(g: &mut Rng) -> u32 {
+pub fn uniform_u32(g: &mut Rng) -> u32 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn u64(g: &mut Rng) -> u64 {
+pub fn uniform_u64(g: &mut Rng) -> u64 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn u128(g: &mut Rng) -> u128 {
+pub fn uniform_u128(g: &mut Rng) -> u128 {
   g.uniform()
 }
 
@@ -57,14 +57,14 @@ pub fn bounded_u64(g: &mut Rng, n: u64) -> u64 {
 }
 
 #[inline(never)]
-pub fn bounded_u64_zero(g: &mut Rng) -> u64 {
+pub fn bounded_u64_0(g: &mut Rng) -> u64 {
   g.bounded(0)
 }
 
 #[inline(never)]
 pub fn bounded_u64_255(g: &mut Rng) -> u64 {
   // g.upto(255)
-  g.sample(..= 255)
+  g.random(..= 255)
 }
 
 #[inline(never)]
@@ -93,43 +93,68 @@ pub fn between_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
 }
 
 #[inline(never)]
-pub fn non_zero_u32(g: &mut Rng) -> NonZeroU32 {
+pub fn uniform_non_zero_u32(g: &mut Rng) -> NonZeroU32 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn non_zero_u64(g: &mut Rng) -> NonZeroU64 {
+pub fn uniform_non_zero_u64(g: &mut Rng) -> NonZeroU64 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn non_zero_u128(g: &mut Rng) -> NonZeroU128 {
+pub fn uniform_non_zero_u128(g: &mut Rng) -> NonZeroU128 {
   g.uniform()
 }
 
 #[inline(never)]
 pub fn f32(g: &mut Rng) -> f32 {
-  g.f32()
+  g.float()
 }
 
 #[inline(never)]
 pub fn f64(g: &mut Rng) -> f64 {
-  g.f64()
+  g.float()
 }
 
 #[inline(never)]
-pub fn biunit_f32(g: &mut Rng) -> f32 {
-  g.biunit_f32()
+pub fn float_biunit_f32(g: &mut Rng) -> f32 {
+  g.float_biunit()
 }
 
 #[inline(never)]
-pub fn biunit_f64(g: &mut Rng) -> f64 {
-  g.biunit_f64()
+pub fn float_biunit_f64(g: &mut Rng) -> f64 {
+  g.float_biunit()
 }
 
 #[inline(never)]
-pub fn byte_array_32(g: &mut Rng) -> [u8; 32] {
+pub fn random_6u16(g: &mut Rng) -> [u16; 6] {
+  g.random([..])
+}
+
+#[inline(never)]
+pub fn random_6u32(g: &mut Rng) -> [u32; 6] {
+  g.random([..])
+}
+
+#[inline(never)]
+pub fn random_6d6(g: &mut Rng) -> [u32; 6] {
+  g.random([core::range::RangeInclusive::from(1 ..= 6)])
+}
+
+#[inline(never)]
+pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
   g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6u32(g: &mut Rng) -> [u32; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn fill(g: &mut Rng, buf: &mut [u8]) {
+  g.fill(buf)
 }
 
 #[inline(never)]

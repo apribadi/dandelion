@@ -41,10 +41,10 @@ fn test_api() {
   write!(&mut out, "{}\n", rng.between::<u32>(1, 6));
   write!(&mut out, "{}\n", rng.between::<u64>(1, 6));
   write!(&mut out, "{}\n", rng.between::<usize>(1, 6));
-  write!(&mut out, "{}\n", rng.f32());
-  write!(&mut out, "{}\n", rng.f64());
-  write!(&mut out, "{}\n", rng.biunit_f32());
-  write!(&mut out, "{}\n", rng.biunit_f64());
+  write!(&mut out, "{}\n", rng.float::<f32>());
+  write!(&mut out, "{}\n", rng.float::<f64>());
+  write!(&mut out, "{}\n", rng.float_biunit::<f32>());
+  write!(&mut out, "{}\n", rng.float_biunit::<f64>());
   write!(&mut out, "{:?}\n", { rng.fill(&mut buf); buf });
   write!(&mut out, "{:?}\n", unsafe { rng.fill_unchecked(buf.as_mut_ptr(), buf.len()); buf });
   write!(&mut out, "{:?}\n", rng.fill_uninit(&mut buf_uninit));
@@ -130,10 +130,10 @@ fn test_api_thread_local() {
   let _ = dandelion::thread_local::between::<u32>(1, 6);
   let _ = dandelion::thread_local::between::<u64>(1, 6);
   let _ = dandelion::thread_local::between::<usize>(1, 6);
-  let _ = dandelion::thread_local::f32();
-  let _ = dandelion::thread_local::f64();
-  let _ = dandelion::thread_local::biunit_f32();
-  let _ = dandelion::thread_local::biunit_f64();
+  let _ = dandelion::thread_local::float::<f32>();
+  let _ = dandelion::thread_local::float::<f64>();
+  let _ = dandelion::thread_local::float_biunit::<f32>();
+  let _ = dandelion::thread_local::float_biunit::<f64>();
   dandelion::thread_local::fill(&mut buf);
   unsafe { dandelion::thread_local::fill_unchecked(buf.as_mut_ptr(), buf.len()) };
   let _ = dandelion::thread_local::fill_uninit(&mut buf_uninit);
@@ -193,13 +193,13 @@ fn test_vectors() {
   "#]].assert_eq(out.drain(..).as_str());
 
   let mut rng = Rng::new(NonZeroU128::MIN);
-  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.f32()); }
+  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.float::<f32>()); }
   write!(&mut out, "\n");
-  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.f64()); }
+  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.float::<f64>()); }
   write!(&mut out, "\n");
-  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.biunit_f32()); }
+  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.float_biunit::<f32>()); }
   write!(&mut out, "\n");
-  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.biunit_f64()); }
+  for _ in 0 .. 10 { write!(&mut out, "{:+.16}\n", rng.float_biunit::<f64>()); }
 
   expect![[r#"
       +0.7606964111328125
