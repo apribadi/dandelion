@@ -608,7 +608,7 @@ impl<A: RandomUniform, B: RandomUniform> RandomUniform for (A, B) {
 }
 
 impl<A: RandomUniform, B: RandomUniform> private::RandomUniform for (A, B) {
-  #[inline(always)]
+  #[inline]
   fn random_uniform(g: &mut Rng) -> Self {
     (A::random_uniform(g), B::random_uniform(g))
   }
@@ -879,41 +879,49 @@ pub mod thread_local {
   }
 
   /// See [Rng::random].
+  #[inline]
   pub fn random<T>(d: impl Distribution<T>) -> T {
     with(|g| g.random(d))
   }
 
   /// See [Rng::fill].
+  #[inline]
   pub fn fill<T>(distr: impl Distribution<T>, buf: &mut [T]) {
     with(|g| g.fill(distr, buf))
   }
 
   /// See [Rng::uniform].
+  #[inline]
   pub fn uniform<T: RandomUniform>() -> T {
     with(|g| g.uniform())
   }
 
   /// See [Rng::bounded].
+  #[inline]
   pub fn bounded<T: RandomBounded>(n: T) -> T {
     with(|g| g.bounded(n))
   }
 
   /// See [Rng::between].
+  #[inline]
   pub fn between<T: RandomBetween>(a: T, b: T) -> T {
     with(|g| g.between(a, b))
   }
 
   /// See [Rng::float].
+  #[inline]
   pub fn float<T: RandomFloat>() -> T {
     with(|g| g.float_biunit())
   }
 
   /// See [Rng::float_biunit].
+  #[inline]
   pub fn float_biunit<T: RandomFloat>() -> T {
     with(|g| g.float_biunit())
   }
 
   /// See [Rng::bernoulli].
+  #[inline]
   pub fn bernoulli(p: f64) -> bool {
     with(|g| g.bernoulli(p))
   }

@@ -208,6 +208,16 @@ pub fn thread_local_u64() -> u64 {
   dandelion::thread_local::uniform()
 }
 
+#[cfg(feature = "thread_local")]
+#[inline(never)]
+pub fn thread_local_u64_loop() -> u64 {
+  let mut x = 0;
+  for _ in 0 .. 100 {
+    x ^= dandelion::thread_local::uniform::<u64>();
+  }
+  x
+}
+
 #[cfg(feature = "rand_core")]
 #[inline(never)]
 pub fn fork(g: &mut Rng) -> Rng {
