@@ -57,6 +57,15 @@ pub fn bounded_u64(g: &mut Rng, n: u64) -> u64 {
 }
 
 #[inline(never)]
+pub fn bounded_u64_loop(g: &mut Rng, n: u64) -> u64 {
+  let mut x = 0u64;
+  for _ in 0 .. 100 {
+    x ^= g.bounded(n);
+  }
+  x
+}
+
+#[inline(never)]
 pub fn bounded_u64_0(g: &mut Rng) -> u64 {
   g.bounded(0)
 }
@@ -133,17 +142,22 @@ pub fn float_biunit_f64(g: &mut Rng) -> f64 {
 
 #[inline(never)]
 pub fn random_bools(g: &mut Rng) -> [bool; 6] {
-  g.random([..])
+  g.random(..)
+}
+
+#[inline(never)]
+pub fn random_4u16(g: &mut Rng) -> [u16; 4] {
+  g.random(..)
 }
 
 #[inline(never)]
 pub fn random_6i16(g: &mut Rng) -> [i16; 6] {
-  g.random([..])
+  g.random(..)
 }
 
 #[inline(never)]
 pub fn random_6u16(g: &mut Rng) -> [u16; 6] {
-  g.random([..])
+  g.random(..)
 }
 
 #[inline(never)]
@@ -158,7 +172,7 @@ pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
 
 #[inline(never)]
 pub fn random_6u32(g: &mut Rng) -> [u32; 6] {
-  g.random([..])
+  g.random(..)
 }
 
 #[inline(never)]
@@ -268,6 +282,15 @@ pub fn xoroshiro_non_zero_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> Non
 #[inline(never)]
 pub fn xoroshiro_bounded_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, n: u64) -> u64 {
   g.random_range(0 ..= n)
+}
+
+#[inline(never)]
+pub fn xoroshiro_bounded_u64_loop(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, n: u64) -> u64 {
+  let mut x = 0u64;
+  for _ in 0 .. 100 {
+    x ^= g.random_range(0 ..= n);
+  }
+  x
 }
 
 #[inline(never)]

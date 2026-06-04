@@ -275,8 +275,9 @@ impl Rng {
 
   #[inline(always)]
   fn next_bools(&mut self) -> [bool; 8] {
-    // One could instead produce a `[bool; 64]`, but perhaps over-optimizing
-    // this wouldn't be a good thing ...
+    // NOTE: Returning a `[bool; 64]` instead would probably be an
+    // over-optimization.  If you want to do that kind of thing, you ought to
+    // be producing bits rather than bools anyway.
     let x = self.next();
     let x = x & 0x01010101_01010101;
     let x = x.to_le_bytes().map(|b| b != 0);
@@ -574,7 +575,11 @@ macro_rules! int_uniform_impls {
 
       #[inline]
       fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-        // SAFETY: !!! Good thing Rust doesn't have TBAA !!!
+        // SAFETY:
+        // - iX and uX have compatible representations
+        // - Rust does not do TBAA
+        // - int_uniform_impls! is not exposed, and is used correctly at its
+        //   only call site
         <$uint>::fill_uniform(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
       }
     }
@@ -716,6 +721,7 @@ impl RandomBounded for u64 {
 impl private::RandomBounded for u64 {
   #[inline(always)]
   fn random_bounded(g: &mut Rng, n: Self) -> Self {
+    // A modified version of Canon's unbiased method.
     let mut h = g.clone();
     let x = h.next();
     let m = n.wrapping_add(1);
@@ -730,10 +736,10 @@ impl private::RandomBounded for u64 {
         b = x.wrapping_mul(m);
         if c.0 != u64::MAX { break }
         cold_path();
-        // NB: We get here with negligible probability and don't claim that
-        // looping increases the fidelity of our sampled distribution.
-        // However, the inclusion of the loop inhibits the potential
-        // pessimization of control flow getting if-converted away
+        // NOTE: We get here with negligible probability and don't claim that
+        // looping increases the fidelity of our sampled distribution. However,
+        // the inclusion of the loop inhibits the potential pessimization of
+        // control flow getting if-converted away
       }
     } else {
       a = u;
