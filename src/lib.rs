@@ -274,6 +274,16 @@ impl Rng {
   }
 
   #[inline(always)]
+  fn next_bools(&mut self) -> [bool; 8] {
+    // One could instead produce a `[bool; 64]`, but perhaps over-optimizing
+    // this wouldn't be a good thing ...
+    let x = self.next();
+    let x = x & 0x01010101_01010101;
+    let x = x.to_le_bytes().map(|b| b != 0);
+    x
+  }
+
+  #[inline(always)]
   fn next_8b(&mut self) -> [u8; 8] {
     u64::to_le_bytes(self.next())
   }
@@ -437,6 +447,17 @@ impl private::RandomUniform for bool {
   fn random_uniform(g: &mut Rng) -> Self {
     (g.next() as i64) < 0
   }
+
+  #[inline(always)]
+  fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
+    let mut buf = MaybeUninit::uninit();
+    unsafe { g.fill_unchecked__(Rng::next_bools, &raw mut buf as _, N) };
+    unsafe { buf.assume_init() }
+  }
+
+  fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
+    unsafe { g.fill_unchecked__(Rng::next_bools, &raw mut *buf as _, buf.len()) };
+  }
 }
 
 impl private::RandomUniform for usize {
@@ -451,6 +472,9 @@ impl private::RandomUniform for usize {
   }
 }
 
+impl RandomUniform for u8 {
+}
+
 impl private::RandomUniform for u8 {
   #[inline(always)]
   fn random_uniform(g: &mut Rng) -> Self {
@@ -459,14 +483,17 @@ impl private::RandomUniform for u8 {
 
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
-    let mut a = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_8b, &raw mut a as _, N) };
-    unsafe { a.assume_init() }
+    let mut buf = MaybeUninit::uninit();
+    unsafe { g.fill_unchecked__(Rng::next_8b, &raw mut buf as _, N) };
+    unsafe { buf.assume_init() }
   }
 
   fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
     unsafe { g.fill_unchecked__(Rng::next_8b, &raw mut *buf as _, buf.len()) };
   }
+}
+
+impl RandomUniform for u16 {
 }
 
 impl private::RandomUniform for u16 {
@@ -487,6 +514,9 @@ impl private::RandomUniform for u16 {
   }
 }
 
+impl RandomUniform for u32 {
+}
+
 impl private::RandomUniform for u32 {
   #[inline(always)]
   fn random_uniform(g: &mut Rng) -> Self {
@@ -505,11 +535,17 @@ impl private::RandomUniform for u32 {
   }
 }
 
+impl RandomUniform for u64 {
+}
+
 impl private::RandomUniform for u64 {
   #[inline(always)]
   fn random_uniform(g: &mut Rng) -> Self {
     g.next()
   }
+}
+
+impl RandomUniform for u128 {
 }
 
 impl private::RandomUniform for u128 {
@@ -522,16 +558,7 @@ impl private::RandomUniform for u128 {
 macro_rules! int_uniform_impls {
   ($($sint:ty, $uint:ty, $nzsint:ty, $nzuint:ty;)*) => {
     $(
-    impl RandomUniform for $uint {
-    }
-
     impl RandomUniform for $sint {
-    }
-
-    impl RandomUniform for $nzsint {
-    }
-
-    impl RandomUniform for $nzuint {
     }
 
     impl private::RandomUniform for $sint {
@@ -547,8 +574,12 @@ macro_rules! int_uniform_impls {
 
       #[inline]
       fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-        <$uint>::fill_uniform(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) }); // !!!
+        // SAFETY: !!! Good thing Rust doesn't have TBAA !!!
+        <$uint>::fill_uniform(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
       }
+    }
+
+    impl RandomUniform for $nzsint {
     }
 
     impl private::RandomUniform for $nzsint {
@@ -560,6 +591,9 @@ macro_rules! int_uniform_impls {
           }
         }
       }
+    }
+
+    impl RandomUniform for $nzuint {
     }
 
     impl private::RandomUniform for $nzuint {
@@ -614,6 +648,9 @@ impl<A: RandomUniform, B: RandomUniform> private::RandomUniform for (A, B) {
   }
 }
 
+impl RandomBounded for usize {
+}
+
 impl private::RandomBounded for usize {
   #[inline(always)]
   fn random_bounded(g: &mut Rng, n: Self) -> Self {
@@ -626,6 +663,9 @@ impl private::RandomBounded for usize {
   }
 }
 
+impl RandomBounded for u8 {
+}
+
 impl private::RandomBounded for u8 {
   #[inline(always)]
   fn random_bounded(g: &mut Rng, n: Self) -> Self {
@@ -633,11 +673,17 @@ impl private::RandomBounded for u8 {
   }
 }
 
+impl RandomBounded for u16 {
+}
+
 impl private::RandomBounded for u16 {
   #[inline(always)]
   fn random_bounded(g: &mut Rng, n: Self) -> Self {
     mulhi(g.next(), n as u64 + 1) as _
   }
+}
+
+impl RandomBounded for u32 {
 }
 
 impl private::RandomBounded for u32 {
@@ -662,6 +708,9 @@ impl private::RandomBounded for u32 {
     *g = h;
     a as u32
   }
+}
+
+impl RandomBounded for u64 {
 }
 
 impl private::RandomBounded for u64 {
@@ -697,9 +746,6 @@ impl private::RandomBounded for u64 {
 macro_rules! int_bounded_between_impls {
   ($($sint:ty, $uint:ty;)*) => {
     $(
-    impl RandomBounded for $uint {
-    }
-
     impl RandomBetween for $sint {
     }
 
@@ -737,7 +783,6 @@ impl RandomFloat for f32 {
 impl private::RandomFloat for f32 {
   #[inline(always)]
   fn random_float(g: &mut Rng) -> Self {
-    // cf u64::random_float
     let x = g.next() as i64;
     let x = f32::from_bits(0x2000_0000) * (x as f32);
     x.abs()
@@ -745,7 +790,6 @@ impl private::RandomFloat for f32 {
 
   #[inline(always)]
   fn random_float_biunit(g: &mut Rng) -> Self {
-    // cf u64::random_float_biunit
     let x = g.next() as i64;
     let x = (x & 1) + (x >> 1);
     f32::from_bits(0x2080_0000) * (x as f32)
@@ -932,15 +976,14 @@ mod private {
   use super::Rng;
 
   pub(crate) trait Distribution<T> {
-    // TODO: consider how to make dyn compatible
-
     fn random(&self, _: &mut Rng) -> T;
 
-    #[inline(always)]
+    #[inline]
     fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
       array::from_fn(|_| self.random(g))
     }
 
+    #[inline]
     fn fill(&self, g: &mut Rng, buf: &mut [T]) {
       buf.iter_mut().for_each(|a| *a = self.random(g));
     }
@@ -949,11 +992,12 @@ mod private {
   pub(crate) trait RandomUniform: Sized {
     fn random_uniform(_: &mut Rng) -> Self;
 
-    #[inline(always)]
+    #[inline]
     fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
       array::from_fn(|_| Self::random_uniform(g))
     }
 
+    #[inline]
     fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
       buf.iter_mut().for_each(|a| *a = Self::random_uniform(g));
     }

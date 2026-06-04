@@ -112,6 +112,11 @@ pub fn f32(g: &mut Rng) -> f32 {
 }
 
 #[inline(never)]
+pub fn f32x4(g: &mut Rng) -> [f32; 4] {
+  std::array::from_fn(|_| g.float())
+}
+
+#[inline(never)]
 pub fn f64(g: &mut Rng) -> f64 {
   g.float()
 }
@@ -124,6 +129,11 @@ pub fn float_biunit_f32(g: &mut Rng) -> f32 {
 #[inline(never)]
 pub fn float_biunit_f64(g: &mut Rng) -> f64 {
   g.float_biunit()
+}
+
+#[inline(never)]
+pub fn random_bools(g: &mut Rng) -> [bool; 6] {
+  g.random([..])
 }
 
 #[inline(never)]
@@ -258,6 +268,11 @@ pub fn xoroshiro_non_zero_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> Non
 #[inline(never)]
 pub fn xoroshiro_bounded_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, n: u64) -> u64 {
   g.random_range(0 ..= n)
+}
+
+#[inline(never)]
+pub fn xoroshiro_bounded_u64_255(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> u64 {
+  g.random_range(0 ..= 255)
 }
 
 #[inline(never)]
