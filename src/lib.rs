@@ -262,10 +262,10 @@ impl Rng {
   }
 
   /// Shuffles a mutable slice in place with a random permutation.
-  pub fn shuffle<T>(&mut self, slice: &mut [T]) {
-    let n = slice.len();
+  pub fn shuffle<T>(&mut self, buf: &mut [T]) {
+    let n = buf.len();
     if n >= 2 {
-      let p = &raw mut *slice as *mut T;
+      let p = &raw mut *buf as *mut T;
       for i in 1 .. n {
         let j = self.bounded(i);
         unsafe { p.add(i).swap(p.add(j)) };
@@ -974,6 +974,18 @@ pub mod thread_local {
   #[inline]
   pub fn bernoulli(p: f64) -> bool {
     with(|g| g.bernoulli(p))
+  }
+
+  /// See [Rng::shuffle].
+  #[inline]
+  pub fn shuffle<T>(buf: &mut [T]) {
+    with(|g| g.shuffle(buf))
+  }
+
+  /// See [Rng::fill_bytes_unchecked].
+  #[inline]
+  pub unsafe fn fill_bytes_unchecked(dst: *mut u8, len: usize) {
+    with(|g| unsafe { g.fill_bytes_unchecked(dst, len) })
   }
 }
 
