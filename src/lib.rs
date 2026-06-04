@@ -263,13 +263,11 @@ impl Rng {
 
   /// Shuffles a mutable slice in place with a random permutation.
   pub fn shuffle<T>(&mut self, buf: &mut [T]) {
+    let p = buf.as_mut_ptr();
     let n = buf.len();
-    if n >= 2 {
-      let p = &raw mut *buf as *mut T;
-      for i in 1 .. n {
-        let j = self.bounded(i);
-        unsafe { p.add(i).swap(p.add(j)) };
-      }
+    for i in 1 .. n {
+      let j = self.bounded(i);
+      unsafe { p.add(i).swap(p.add(j)) };
     }
   }
 
@@ -314,29 +312,29 @@ impl Rng {
     while i > 2 * N {
       let x = f(self);
       let y = f(self);
-      unsafe { p.copy_from_nonoverlapping(&raw const x as _, N) };
+      unsafe { p.copy_from_nonoverlapping(x.as_ptr(), N) };
       p = unsafe { p.add(N) };
       i = i - N;
-      unsafe { p.copy_from_nonoverlapping(&raw const y as _, N) };
+      unsafe { p.copy_from_nonoverlapping(y.as_ptr(), N) };
       p = unsafe { p.add(N) };
       i = i - N;
     }
     if i > N {
       let x = f(self);
-      unsafe { p.copy_from_nonoverlapping(&raw const x as _, N) };
+      unsafe { p.copy_from_nonoverlapping(x.as_ptr(), N) };
       p = unsafe { p.add(N) };
       i = i - N;
     }
     let x = f(self);
     match i {
-      1 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 1) },
-      2 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 2) },
-      3 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 3) },
-      4 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 4) },
-      5 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 5) },
-      6 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 6) },
-      7 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 7) },
-      8 => unsafe { p.copy_from_nonoverlapping(&raw const x as _, 8) },
+      1 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 1) },
+      2 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 2) },
+      3 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 3) },
+      4 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 4) },
+      5 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 5) },
+      6 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 6) },
+      7 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 7) },
+      8 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 8) },
       _ => unreachable!()
     }
   }
@@ -452,12 +450,12 @@ impl private::RandomUniform for bool {
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
     let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_bools, &raw mut buf as _, N) };
+    unsafe { g.fill_unchecked__(Rng::next_bools, buf.as_mut_ptr() as _, N) };
     unsafe { buf.assume_init() }
   }
 
   fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_bools, &raw mut *buf as _, buf.len()) };
+    unsafe { g.fill_unchecked__(Rng::next_bools, buf.as_mut_ptr(), buf.len()) };
   }
 }
 
@@ -485,12 +483,12 @@ impl private::RandomUniform for u8 {
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
     let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_8b, &raw mut buf as _, N) };
+    unsafe { g.fill_unchecked__(Rng::next_8b, buf.as_mut_ptr() as _, N) };
     unsafe { buf.assume_init() }
   }
 
   fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_8b, &raw mut *buf as _, buf.len()) };
+    unsafe { g.fill_unchecked__(Rng::next_8b, buf.as_mut_ptr(), buf.len()) };
   }
 }
 
@@ -506,12 +504,12 @@ impl private::RandomUniform for u16 {
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
     let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_4h, &raw mut buf as _, N) };
+    unsafe { g.fill_unchecked__(Rng::next_4h, buf.as_mut_ptr() as _, N) };
     unsafe { buf.assume_init() }
   }
 
   fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_4h, &raw mut *buf as _, buf.len()) };
+    unsafe { g.fill_unchecked__(Rng::next_4h, buf.as_mut_ptr(), buf.len()) };
   }
 }
 
@@ -527,12 +525,12 @@ impl private::RandomUniform for u32 {
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
     let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_2w, &raw mut buf as _, N) };
+    unsafe { g.fill_unchecked__(Rng::next_2w, buf.as_mut_ptr() as _, N) };
     unsafe { buf.assume_init() }
   }
 
   fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_2w, &raw mut *buf as _, buf.len()) };
+    unsafe { g.fill_unchecked__(Rng::next_2w, buf.as_mut_ptr(), buf.len()) };
   }
 }
 
@@ -579,7 +577,7 @@ macro_rules! int_uniform_impls {
         // - iX and uX have compatible representations
         // - Rust does not do TBAA
         // - int_uniform_impls! is not exposed, and is used correctly at its
-        //   only call site
+        //   only usage site
         <$uint>::fill_uniform(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
       }
     }
