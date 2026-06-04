@@ -34,7 +34,7 @@ impl RngForBench for Rng {
   fn range_u64(&mut self, lo: u64, hi: u64) -> u64 { self.between(lo, hi) }
   fn f64(&mut self) -> f64 { self.float() }
   fn bernoulli(&mut self, p: f64) -> bool { self.bernoulli(p) }
-  fn fill(&mut self, buf: &mut [u8]) { self.fill(buf) }
+  fn fill(&mut self, buf: &mut [u8]) { self.fill(.., buf) }
   fn shuffle<T>(&mut self, slice: &mut [T]) { self.shuffle(slice) }
 }
 

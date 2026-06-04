@@ -6,7 +6,6 @@ use dandelion::Rng;
 use expect_test::expect;
 use std::array;
 use std::fmt::Write;
-use std::mem::MaybeUninit;
 use std::num::NonZeroU128;
 use std::num::NonZeroU32;
 use std::num::NonZeroU64;
@@ -16,7 +15,6 @@ fn test_api() {
   let mut out = String::new();
   let mut rng = Rng::new(NonZeroU128::MIN);
   let mut buf = [0u8; 9];
-  let mut buf_uninit = [MaybeUninit::uninit(); 9];
 
   write!(&mut out, "{:?}\n", Rng::from_u64(0));
   write!(&mut out, "{:?}\n", Rng::from_state(NonZeroU128::MIN));
@@ -45,9 +43,7 @@ fn test_api() {
   write!(&mut out, "{}\n", rng.float::<f64>());
   write!(&mut out, "{}\n", rng.float_biunit::<f32>());
   write!(&mut out, "{}\n", rng.float_biunit::<f64>());
-  write!(&mut out, "{:?}\n", { rng.fill(&mut buf); buf });
-  write!(&mut out, "{:?}\n", unsafe { rng.fill_unchecked(buf.as_mut_ptr(), buf.len()); buf });
-  write!(&mut out, "{:?}\n", rng.fill_uninit(&mut buf_uninit));
+  write!(&mut out, "{:?}\n", { rng.fill(.., &mut buf); buf });
   write!(&mut out, "{:?}\n", rng.uniform::<[u8; 9]>());
 
   expect![[r#"
@@ -80,8 +76,6 @@ fn test_api() {
       0.13280605192768077
       [18, 216, 14, 156, 103, 65, 178, 57, 94]
       [221, 83, 241, 111, 57, 62, 163, 136, 80]
-      [111, 57, 151, 3, 4, 233, 178, 58, 29]
-      [177, 217, 36, 241, 125, 155, 71, 61, 102]
   "#]].assert_eq(out.drain(..).as_str());
 }
 
@@ -109,7 +103,6 @@ fn test_api_rand_core() {
 #[test]
 fn test_api_thread_local() {
   let mut buf = [0u8; 21];
-  let mut buf_uninit = [MaybeUninit::uninit(); 21];
   let _ = dandelion::thread_local::bernoulli(0.5);
   let _ = dandelion::thread_local::uniform::<bool>();
   let _ = dandelion::thread_local::uniform::<i32>();
@@ -121,6 +114,7 @@ fn test_api_thread_local() {
   let _ = dandelion::thread_local::uniform::<NonZeroU32>();
   let _ = dandelion::thread_local::uniform::<NonZeroU64>();
   let _ = dandelion::thread_local::uniform::<NonZeroU128>();
+  let _ = dandelion::thread_local::uniform::<[u8; 21]>();
   let _ = dandelion::thread_local::bounded::<u32>(5);
   let _ = dandelion::thread_local::bounded::<u64>(5);
   let _ = dandelion::thread_local::bounded::<usize>(5);
@@ -134,10 +128,7 @@ fn test_api_thread_local() {
   let _ = dandelion::thread_local::float::<f64>();
   let _ = dandelion::thread_local::float_biunit::<f32>();
   let _ = dandelion::thread_local::float_biunit::<f64>();
-  dandelion::thread_local::fill(&mut buf);
-  unsafe { dandelion::thread_local::fill_unchecked(buf.as_mut_ptr(), buf.len()) };
-  let _ = dandelion::thread_local::fill_uninit(&mut buf_uninit);
-  let _ = dandelion::thread_local::uniform::<[u8; 21]>();
+  dandelion::thread_local::fill(.., &mut buf);
 }
 
 #[test]
