@@ -178,6 +178,11 @@ pub fn fill_u8(g: &mut Rng, buf: &mut [u8]) {
 }
 
 #[inline(never)]
+pub fn fill_i16(g: &mut Rng, buf: &mut [i16]) {
+  g.fill(.., buf)
+}
+
+#[inline(never)]
 pub fn fill_u16(g: &mut Rng, buf: &mut [u16]) {
   g.fill(.., buf)
 }
