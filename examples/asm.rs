@@ -153,7 +153,7 @@ pub fn random_6u32(g: &mut Rng) -> [u32; 6] {
 
 #[inline(never)]
 pub fn random_6d6(g: &mut Rng) -> [u32; 6] {
-  g.random([&(1 ..= 6)])
+  g.random([1 ..= 6])
 }
 
 #[inline(never)]
@@ -163,7 +163,7 @@ pub fn random_range_to_inclusive_6u16(g: &mut Rng, n: u16) -> [u16; 6] {
 
 #[inline(never)]
 pub fn random_range_inclusive_6u16(g: &mut Rng, a: u16, b: u16) -> [u16; 6] {
-  g.random([&(a ..= b)])
+  g.random([a ..= b])
 }
 
 

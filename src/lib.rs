@@ -220,7 +220,7 @@ impl Rng {
   }
 
   /// ???
-  pub fn fill<T>(&mut self, distr: impl Copy + Distribution<T>, buf: &mut [T]) {
+  pub fn fill<T>(&mut self, distr: impl Distribution<T>, buf: &mut [T]) {
     distr.fill(self, buf)
   }
 
@@ -685,86 +685,93 @@ impl private::RandomFloat for f64 {
   }
 }
 
+impl<'a, T, D: Distribution<T>> Distribution<T> for &'a D {
+}
+
+impl<'a, T, D: Distribution<T>> private::Distribution<T> for &'a D {
+  #[inline(always)]
+  fn random(&self, g: &mut Rng) -> T {
+    (*self).random(g)
+  }
+
+  #[inline(always)]
+  fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
+    (*self).random_array(g)
+  }
+
+  fn fill(&self, g: &mut Rng, buf: &mut [T]) {
+    (*self).fill(g, buf)
+  }
+}
+
 impl<T: RandomUniform> Distribution<T> for RangeFull {
 }
 
 impl<T: RandomUniform> private::Distribution<T> for RangeFull {
   #[inline(always)]
-  fn random(self, g: &mut Rng) -> T {
+  fn random(&self, g: &mut Rng) -> T {
     T::random_uniform(g)
   }
 
   #[inline(always)]
-  fn random_array<const N: usize>(self, g: &mut Rng) -> [T; N] {
+  fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
     T::random_uniform_array(g)
   }
 
-  fn fill(self, g: &mut Rng, buf: &mut [T]) {
+  fn fill(&self, g: &mut Rng, buf: &mut [T]) {
     T::fill_uniform(g, buf)
   }
 }
 
-impl<T: RandomBounded> Distribution<T> for core::ops::RangeToInclusive<T> {
+impl<T: Copy + RandomBounded> Distribution<T> for core::ops::RangeToInclusive<T> {
 }
 
-impl<T: RandomBounded> private::Distribution<T> for core::ops::RangeToInclusive<T> {
+impl<T: Copy + RandomBounded> private::Distribution<T> for core::ops::RangeToInclusive<T> {
   #[inline(always)]
-  fn random(self, g: &mut Rng) -> T {
+  fn random(&self, g: &mut Rng) -> T {
     T::random_bounded(g, self.end)
   }
 }
 
-impl<T: RandomBounded> Distribution<T> for RangeToInclusive<T> {
+impl<T: Copy + RandomBounded> Distribution<T> for RangeToInclusive<T> {
 }
 
-impl<T: RandomBounded> private::Distribution<T> for RangeToInclusive<T> {
+impl<T: Copy + RandomBounded> private::Distribution<T> for RangeToInclusive<T> {
   #[inline(always)]
-  fn random(self, g: &mut Rng) -> T {
+  fn random(&self, g: &mut Rng) -> T {
     T::random_bounded(g, self.last)
   }
 }
 
-impl<T: PartialOrd + RandomBetween> Distribution<T> for core::ops::RangeInclusive<T> {
+impl<T: Copy + PartialOrd + RandomBetween> Distribution<T> for core::ops::RangeInclusive<T> {
 }
 
-impl<T: PartialOrd + RandomBetween> private::Distribution<T> for core::ops::RangeInclusive<T> {
+impl<T: Copy + PartialOrd + RandomBetween> private::Distribution<T> for core::ops::RangeInclusive<T> {
   #[inline(always)]
-  fn random(self, g: &mut Rng) -> T {
-    assert!(! self.is_empty());
-    let (a, b) = self.into_inner();
-    T::random_between(g, a, b)
-  }
-}
-
-impl<'a, T: Copy + PartialOrd + RandomBetween> Distribution<T> for &'a core::ops::RangeInclusive<T> {
-}
-
-impl<'a, T: Copy + PartialOrd + RandomBetween> private::Distribution<T> for &'a core::ops::RangeInclusive<T> {
-  #[inline(always)]
-  fn random(self, g: &mut Rng) -> T {
+  fn random(&self, g: &mut Rng) -> T {
     assert!(! self.is_empty());
     T::random_between(g, *self.start(), *self.end())
   }
 }
 
-impl<T: PartialOrd + RandomBetween> Distribution<T> for RangeInclusive<T> {
+impl<T: Copy + PartialOrd + RandomBetween> Distribution<T> for RangeInclusive<T> {
 }
 
-impl<T: PartialOrd + RandomBetween> private::Distribution<T> for RangeInclusive<T> {
+impl<T: Copy + PartialOrd + RandomBetween> private::Distribution<T> for RangeInclusive<T> {
   #[inline(always)]
-  fn random(self, g: &mut Rng) -> T {
+  fn random(&self, g: &mut Rng) -> T {
     assert!(! self.is_empty());
     T::random_between(g, self.start, self.last)
   }
 }
 
-impl<const N: usize, T, D: Copy + Distribution<T>> Distribution<[T; N]> for [D; 1] {
+impl<const N: usize, T, D: Distribution<T>> Distribution<[T; N]> for [D; 1] {
 }
 
-impl<const N: usize, T, D: Copy + Distribution<T>> private::Distribution<[T; N]> for [D; 1] {
+impl<const N: usize, T, D: Distribution<T>> private::Distribution<[T; N]> for [D; 1] {
   #[inline(always)]
-  fn random(self, g: &mut Rng) -> [T; N] {
-    let [distr] = self;
+  fn random(&self, g: &mut Rng) -> [T; N] {
+    let [ref distr] = *self;
     distr.random_array(g)
   }
 }
@@ -893,7 +900,7 @@ pub mod thread_local {
   }
 
   /// See [Rng::fill].
-  pub fn fill<T>(distr: impl Copy + Distribution<T>, buf: &mut [T]) {
+  pub fn fill<T>(distr: impl Distribution<T>, buf: &mut [T]) {
     with(|g| g.fill(distr, buf))
   }
 
@@ -935,14 +942,14 @@ mod private {
   }
 
   pub(crate) trait Distribution<T> {
-    fn random(self, _: &mut Rng) -> T;
+    fn random(&self, _: &mut Rng) -> T;
 
     #[inline(always)]
-    fn random_array<const N: usize>(self, g: &mut Rng) -> [T; N] where Self: Copy {
+    fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
       array::from_fn(|_| self.random(g))
     }
 
-    fn fill(self, g: &mut Rng, buf: &mut [T]) where Self: Copy {
+    fn fill(&self, g: &mut Rng, buf: &mut [T]) {
       buf.iter_mut().for_each(|a| *a = self.random(g));
     }
   }
