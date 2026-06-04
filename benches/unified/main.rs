@@ -24,7 +24,7 @@ fn main() {
 #[divan::bench]
 fn bench_thread_local_u64() -> u64 {
   let mut a = 0u64;
-  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u64>() };
+  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u64>(); }
   a
 }
 
@@ -32,13 +32,23 @@ fn bench_thread_local_u64() -> u64 {
 #[divan::bench]
 fn bench_thread_local_u128() -> u128 {
   let mut a = 0u128;
-  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u128>() };
+  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u128>(); }
   a
 }
 
 #[cfg(feature = "thread_local")]
 #[divan::bench]
-fn bench_rand_thread_local_u64() -> u64 {
+fn bench_thread_local_u64_noinline() -> u64 {
+  #[inline(never)]
+  fn u64() -> u64 { dandelion::thread_local::uniform::<u64>() }
+  let mut a = 0u64;
+  for _ in 0 .. N { a ^= u64(); };
+  a
+}
+
+#[cfg(feature = "thread_local")]
+#[divan::bench]
+fn bench_thread_local_rand_u64() -> u64 {
   let mut a = 0u64;
   for _ in 0 .. N { a ^= rand::random::<u64>(); }
   a
@@ -46,9 +56,19 @@ fn bench_rand_thread_local_u64() -> u64 {
 
 #[cfg(feature = "thread_local")]
 #[divan::bench]
-fn bench_rand_thread_local_u128() -> u128 {
+fn bench_thread_local_rand_u128() -> u128 {
   let mut a = 0u128;
   for _ in 0 .. N { a ^= rand::random::<u128>(); }
+  a
+}
+
+#[cfg(feature = "thread_local")]
+#[divan::bench]
+fn bench_thread_local_rand_u64_noinline() -> u64 {
+  #[inline(never)]
+  fn u64() -> u64 { rand::random::<u64>() }
+  let mut a = 0u64;
+  for _ in 0 .. N { a ^= u64(); }
   a
 }
 
