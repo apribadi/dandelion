@@ -743,13 +743,10 @@ impl private::RandomBounded for u64 {
   }
 }
 
-macro_rules! int_bounded_between_impls {
+macro_rules! int_between_impls {
   ($($sint:ty, $uint:ty;)*) => {
     $(
     impl RandomBetween for $sint {
-    }
-
-    impl RandomBetween for $uint {
     }
 
     impl private::RandomBetween for $sint {
@@ -757,6 +754,9 @@ macro_rules! int_bounded_between_impls {
       fn random_between(g: &mut Rng, a: Self, b: Self) -> Self {
         <$uint>::random_between(g, a as $uint, b as $uint).cast_signed()
       }
+    }
+
+    impl RandomBetween for $uint {
     }
 
     impl private::RandomBetween for $uint {
@@ -769,7 +769,7 @@ macro_rules! int_bounded_between_impls {
   };
 }
 
-int_bounded_between_impls! {
+int_between_impls! {
   isize, usize;
   i8, u8;
   i16, u16;
