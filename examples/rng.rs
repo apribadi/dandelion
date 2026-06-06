@@ -11,7 +11,7 @@ fn main() {
   let mut out = stdout().lock();
 
   loop {
-    rng.fill(.., &mut buf);
+    rng.fill(&mut buf);
     if let Err(_) = out.write_all(&buf) { break }
   }
 }

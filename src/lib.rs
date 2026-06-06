@@ -1,6 +1,8 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 
+// TODO: statement about total variation distances
+
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -9,7 +11,6 @@ use core::fmt::Formatter;
 use core::fmt;
 use core::hint::cold_path;
 use core::hint::select_unpredictable;
-use core::mem::MaybeUninit;
 use core::mem::transmute;
 use core::num::NonZeroI128;
 use core::num::NonZeroI16;
@@ -23,33 +24,40 @@ use core::num::NonZeroU32;
 use core::num::NonZeroU64;
 use core::num::NonZeroU8;
 use core::num::NonZeroUsize;
-use core::ops::RangeFull;
 
 /// A high performance non-cryptographic random number generator.
 #[derive(Clone)]
 pub struct Rng { state: NonZeroU128 }
 
-/// ???
-#[allow(private_bounds)]
-pub trait Distribution<T>: private::Distribution<T> {
-}
-
-/// ???
+/// A sealed trait for sampling from the uniform distribution over all possible
+/// values of the type.
+///
+/// See [`Rng::uniform`] and [`Rng::fill`].
 #[allow(private_bounds)]
 pub trait RandomUniform: private::RandomUniform {
 }
 
-/// ???
+/// A sealed trait for sampling from the uniform distribution over a range from
+/// zero to an inclusive upper bound.
+///
+/// See [`Rng::bounded`].
 #[allow(private_bounds)]
 pub trait RandomBounded: private::RandomBounded {
 }
 
-/// ???
+/// A sealed trait for sampling from the uniform distribution over a range from
+/// an inclusive lower bounded to an inclusive upper bound. The range is
+/// permitted to wrap around from the maximum to the minimum value of the type.
+///
+/// See [`Rng::between`].
 #[allow(private_bounds)]
 pub trait RandomBetween: private::RandomBetween {
 }
 
-/// ???
+/// A sealed trait for sampling floating point numbers from various
+/// distributions.
+///
+/// See [`Rng::float`] and [`Rng::float_biunit`].
 #[allow(private_bounds)]
 pub trait RandomFloat: private::RandomFloat {
 }
@@ -58,8 +66,8 @@ pub trait RandomFloat: private::RandomFloat {
 //
 //   impl<T: private::RandomUniform> RandomUniform for T { }
 //
-// and instead do each impl individually so that the documentation for the
-// trait has a list of impls.
+// and instead do each marker impl by itself so that the documentation for the
+// trait has a full list of impls.
 
 #[inline(always)]
 const fn concat(x: u64, y: u64) -> u128 {
@@ -153,7 +161,8 @@ impl Rng {
     Self { state: s }
   }
 
-  /// ???
+  /// Generates the next random number. This is the core operation of the
+  /// random number generator from which other sampling routines are derived.
   #[inline(always)]
   pub const fn next(&mut self) -> u64 {
     let s = self.state.get();
@@ -165,18 +174,6 @@ impl Rng {
     y.wrapping_add(x.wrapping_mul(x)) ^ mulhi(x, x)
   }
 
-  /// ???
-  #[inline]
-  pub fn random<T>(&mut self, distr: impl Distribution<T>) -> T {
-    distr.random(self)
-  }
-
-  /// ???
-  #[inline]
-  pub fn fill<T>(&mut self, distr: impl Distribution<T>, buf: &mut [T]) {
-    distr.fill(self, buf)
-  }
-
   /// Samples a `T` from the uniform distribution over all possible values of
   /// type `T`.
   #[inline]
@@ -184,18 +181,23 @@ impl Rng {
     T::random_uniform(self)
   }
 
-  // TODO: statement about total variation distance from the ideal distribution
+  /// Fills a slice with `T`s sampled from the uniform distribution over all
+  /// possible values of type `T`.
+  #[inline]
+  pub fn fill<T: RandomUniform>(&mut self, buf: &mut [T]) {
+    T::random_fill(self, buf)
+  }
 
-  /// Samples a `T` from the uniform distribution over `0 ..= n`, i.e. the
-  /// inclusive range bounded above by `n`.
+  /// Samples a `T` from the uniform distribution over a range from zero
+  /// to an inclusive upper bound `n`.
   #[inline]
   pub fn bounded<T: RandomBounded>(&mut self, n: T) -> T {
     T::random_bounded(self, n)
   }
 
-  /// Samples a `T` from the uniform distribution over `a ..= b`, i.e. the
-  /// inclusive range between `a` and `b`. The range is permitted to wrap
-  /// around from `T::MAX` to `T::MIN`.
+  /// Samples a `T` from the uniform distribution over a range from an
+  /// inclusive lower bound `a` to an inclusive upper bound `b`. The range is
+  /// permitted to wrap around from `T::MAX` to `T::MIN`.
   #[inline]
   pub fn between<T: RandomBetween>(&mut self, a: T, b: T) -> T {
     T::random_between(self, a, b)
@@ -272,10 +274,7 @@ impl Rng {
   }
 
   #[inline(always)]
-  fn next_bools(&mut self) -> [bool; 8] {
-    // NOTE: Returning a `[bool; 64]` instead would probably be an
-    // over-optimization.  If you want to do that kind of thing, you ought to
-    // be producing bits rather than bools anyway.
+  fn next_8p(&mut self) -> [bool; 8] {
     let x = self.next();
     let x = x & 0x01010101_01010101;
     let x = x.to_le_bytes().map(|b| b != 0);
@@ -300,7 +299,7 @@ impl Rng {
   }
 
   #[inline(always)]
-  unsafe fn fill_unchecked__<const N: usize, T, F>(&mut self, f: F, buf: *mut T, len: usize)
+  unsafe fn fill_unchecked__<const N: usize, T, F>(&mut self, buf: *mut T, len: usize, f: F)
   where
     T: Copy,
     F: Fn(&mut Self) -> [T; N]
@@ -309,17 +308,7 @@ impl Rng {
     let mut p = buf;
     let mut i = len;
     if i == 0 { return }
-    while i > 2 * N {
-      let x = f(self);
-      let y = f(self);
-      unsafe { p.copy_from_nonoverlapping(x.as_ptr(), N) };
-      p = unsafe { p.add(N) };
-      i = i - N;
-      unsafe { p.copy_from_nonoverlapping(y.as_ptr(), N) };
-      p = unsafe { p.add(N) };
-      i = i - N;
-    }
-    if i > N {
+    while i > N {
       let x = f(self);
       unsafe { p.copy_from_nonoverlapping(x.as_ptr(), N) };
       p = unsafe { p.add(N) };
@@ -339,102 +328,41 @@ impl Rng {
     }
   }
 
-  /// ???
-  pub unsafe fn fill_bytes_unchecked(&mut self, dst: *mut u8, len: usize) {
-    unsafe { self.fill_unchecked__(Rng::next_8b, dst, len) };
-  }
-}
-
-impl<'a, T, U: Distribution<T> + ?Sized> Distribution<T> for &'a U {
-}
-
-impl<'a, T, U: Distribution<T> + ?Sized> private::Distribution<T> for &'a U {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> T {
-    (*self).random(g)
-  }
-
-  #[inline]
-  fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
-    (*self).random_array(g)
-  }
-
-  #[inline]
-  fn fill(&self, g: &mut Rng, buf: &mut [T]) {
-    (*self).fill(g, buf)
-  }
-}
-
-impl<T: RandomUniform> Distribution<T> for RangeFull {
-}
-
-impl<T: RandomUniform> private::Distribution<T> for RangeFull {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> T {
-    T::random_uniform(g)
-  }
-
-  #[inline]
-  fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
-    T::random_uniform_array(g)
-  }
-
-  #[inline]
-  fn fill(&self, g: &mut Rng, buf: &mut [T]) {
-    T::fill_uniform(g, buf)
-  }
-}
-
-impl<T: RandomBounded + Clone> Distribution<T> for core::ops::RangeToInclusive<T> {
-}
-
-impl<T: RandomBounded + Clone> private::Distribution<T> for core::ops::RangeToInclusive<T> {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> T {
-    T::random_bounded(g, self.end.clone())
-  }
-}
-
-impl<T: RandomBounded + Clone> Distribution<T> for core::range::RangeToInclusive<T> {
-}
-
-impl<T: RandomBounded + Clone> private::Distribution<T> for core::range::RangeToInclusive<T> {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> T {
-    T::random_bounded(g, self.last.clone())
-  }
-}
-
-impl<T: RandomBetween + Clone + PartialOrd>  Distribution<T> for core::ops::RangeInclusive<T> {
-}
-
-impl<T: RandomBetween + Clone + PartialOrd> private::Distribution<T> for core::ops::RangeInclusive<T> {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> T {
-    assert!(! self.is_empty());
-    T::random_between(g, self.start().clone(), self.end().clone())
-  }
-}
-
-impl<T: RandomBetween + Clone + PartialOrd> Distribution<T> for core::range::RangeInclusive<T> {
-}
-
-impl<T: RandomBetween + Clone + PartialOrd> private::Distribution<T> for core::range::RangeInclusive<T> {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> T {
-    assert!(! self.is_empty());
-    T::random_between(g, self.start.clone(), self.last.clone())
-  }
-}
-
-impl<const N: usize, T, U: Distribution<T>> Distribution<[T; N]> for [U; 1] {
-}
-
-impl<const N: usize, T, U: Distribution<T>> private::Distribution<[T; N]> for [U; 1] {
-  #[inline]
-  fn random(&self, g: &mut Rng) -> [T; N] {
-    let [ref distr] = *self;
-    distr.random_array(g)
+  #[inline(always)]
+  unsafe fn fill_unchecked_b(&mut self, buf: *mut u8, len: usize) {
+    // the byte version is unrolled more than the others
+    const N: usize = 8;
+    let mut p = buf;
+    let mut i = len;
+    if i == 0 { return }
+    while i > 2 * N {
+      let x = self.next_8b();
+      let y = self.next_8b();
+      unsafe { p.copy_from_nonoverlapping(x.as_ptr(), N) };
+      p = unsafe { p.add(N) };
+      i = i - N;
+      unsafe { p.copy_from_nonoverlapping(y.as_ptr(), N) };
+      p = unsafe { p.add(N) };
+      i = i - N;
+    }
+    if i > N {
+      let x = self.next_8b();
+      unsafe { p.copy_from_nonoverlapping(x.as_ptr(), N) };
+      p = unsafe { p.add(N) };
+      i = i - N;
+    }
+    let x = self.next_8b();
+    match i {
+      1 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 1) },
+      2 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 2) },
+      3 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 3) },
+      4 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 4) },
+      5 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 5) },
+      6 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 6) },
+      7 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 7) },
+      8 => unsafe { p.copy_from_nonoverlapping(x.as_ptr(), 8) },
+      _ => unreachable!()
+    }
   }
 }
 
@@ -449,14 +377,17 @@ impl private::RandomUniform for bool {
 
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
-    let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_bools, buf.as_mut_ptr() as _, N) };
-    unsafe { buf.assume_init() }
+    let mut buf = [false; N];
+    unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_8p) };
+    buf
   }
 
-  fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_bools, buf.as_mut_ptr(), buf.len()) };
+  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+    unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_8p) };
   }
+}
+
+impl RandomUniform for usize {
 }
 
 impl private::RandomUniform for usize {
@@ -482,13 +413,13 @@ impl private::RandomUniform for u8 {
 
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
-    let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_8b, buf.as_mut_ptr() as _, N) };
-    unsafe { buf.assume_init() }
+    let mut buf = [0; N];
+    unsafe { g.fill_unchecked_b(buf.as_mut_ptr(), buf.len()) };
+    buf
   }
 
-  fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_8b, buf.as_mut_ptr(), buf.len()) };
+  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+    unsafe { g.fill_unchecked_b(buf.as_mut_ptr(), buf.len()) };
   }
 }
 
@@ -503,13 +434,13 @@ impl private::RandomUniform for u16 {
 
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
-    let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_4h, buf.as_mut_ptr() as _, N) };
-    unsafe { buf.assume_init() }
+    let mut buf = [0; N];
+    unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_4h) };
+    buf
   }
 
-  fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_4h, buf.as_mut_ptr(), buf.len()) };
+  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+    unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_4h) };
   }
 }
 
@@ -524,13 +455,13 @@ impl private::RandomUniform for u32 {
 
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
-    let mut buf = MaybeUninit::uninit();
-    unsafe { g.fill_unchecked__(Rng::next_2w, buf.as_mut_ptr() as _, N) };
-    unsafe { buf.assume_init() }
+    let mut buf = [0; N];
+    unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_2w) };
+    buf
   }
 
-  fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_unchecked__(Rng::next_2w, buf.as_mut_ptr(), buf.len()) };
+  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+    unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_2w) };
   }
 }
 
@@ -572,13 +503,13 @@ macro_rules! int_uniform_impls {
       }
 
       #[inline]
-      fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
+      fn random_fill(g: &mut Rng, buf: &mut [Self]) {
         // SAFETY:
         // - iX and uX have compatible representations
         // - Rust does not do TBAA
         // - int_uniform_impls! is not exposed, and is used correctly at its
         //   only usage site
-        <$uint>::fill_uniform(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
+        <$uint>::random_fill(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
       }
     }
 
@@ -852,7 +783,7 @@ impl rand_core::TryRng for Rng {
 
   #[inline]
   fn try_fill_bytes(&mut self, buf: &mut [u8]) -> Result<(), Self::Error> {
-    self.fill(.., buf);
+    self.fill(buf);
     Ok(())
   }
 }
@@ -897,7 +828,6 @@ pub mod thread_local {
   use std::cell::Cell;
   use std::num::NonZeroU128;
   use std::thread_local;
-  use super::Distribution;
   use super::RandomBetween;
   use super::RandomBounded;
   use super::RandomFloat;
@@ -926,22 +856,16 @@ pub mod thread_local {
     })
   }
 
-  /// See [Rng::random].
-  #[inline]
-  pub fn random<T>(d: impl Distribution<T>) -> T {
-    with(|g| g.random(d))
-  }
-
-  /// See [Rng::fill].
-  #[inline]
-  pub fn fill<T>(distr: impl Distribution<T>, buf: &mut [T]) {
-    with(|g| g.fill(distr, buf))
-  }
-
   /// See [Rng::uniform].
   #[inline]
   pub fn uniform<T: RandomUniform>() -> T {
     with(|g| g.uniform())
+  }
+
+  /// See [Rng::fill].
+  #[inline]
+  pub fn fill<T: RandomUniform>(buf: &mut [T]) {
+    with(|g| g.fill(buf))
   }
 
   /// See [Rng::bounded].
@@ -979,31 +903,11 @@ pub mod thread_local {
   pub fn shuffle<T>(buf: &mut [T]) {
     with(|g| g.shuffle(buf))
   }
-
-  /// See [Rng::fill_bytes_unchecked].
-  #[inline]
-  pub unsafe fn fill_bytes_unchecked(dst: *mut u8, len: usize) {
-    with(|g| unsafe { g.fill_bytes_unchecked(dst, len) })
-  }
 }
 
 mod private {
   use core::array;
   use super::Rng;
-
-  pub(crate) trait Distribution<T> {
-    fn random(&self, _: &mut Rng) -> T;
-
-    #[inline]
-    fn random_array<const N: usize>(&self, g: &mut Rng) -> [T; N] {
-      array::from_fn(|_| self.random(g))
-    }
-
-    #[inline]
-    fn fill(&self, g: &mut Rng, buf: &mut [T]) {
-      buf.iter_mut().for_each(|a| *a = self.random(g));
-    }
-  }
 
   pub(crate) trait RandomUniform: Sized {
     fn random_uniform(_: &mut Rng) -> Self;
@@ -1014,7 +918,7 @@ mod private {
     }
 
     #[inline]
-    fn fill_uniform(g: &mut Rng, buf: &mut [Self]) {
+    fn random_fill(g: &mut Rng, buf: &mut [Self]) {
       buf.iter_mut().for_each(|a| *a = Self::random_uniform(g));
     }
   }

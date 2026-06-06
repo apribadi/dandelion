@@ -43,7 +43,7 @@ fn test_api() {
   write!(&mut out, "{}\n", rng.float::<f64>());
   write!(&mut out, "{}\n", rng.float_biunit::<f32>());
   write!(&mut out, "{}\n", rng.float_biunit::<f64>());
-  write!(&mut out, "{:?}\n", { rng.fill(.., &mut buf); buf });
+  write!(&mut out, "{:?}\n", { rng.fill(&mut buf); buf });
   write!(&mut out, "{:?}\n", rng.uniform::<[u8; 9]>());
 
   expect![[r#"
@@ -128,7 +128,7 @@ fn test_api_thread_local() {
   let _ = dandelion::thread_local::float::<f64>();
   let _ = dandelion::thread_local::float_biunit::<f32>();
   let _ = dandelion::thread_local::float_biunit::<f64>();
-  dandelion::thread_local::fill(.., &mut buf);
+  dandelion::thread_local::fill(&mut buf);
 }
 
 #[test]

@@ -12,9 +12,7 @@ the performance of surrounding code.
 # Example
 
 ```
-use dandelion::Rng;
-use std::num::NonZeroU128;
-let mut g = Rng::new(NonZeroU128::MIN);
+let mut g = dandelion::Rng::new(std::num::NonZeroU128::MIN);
 let a: u64 = g.uniform();
 let b: u64 = g.between(1, 6);
 let c: f64 = g.float();
@@ -24,6 +22,10 @@ assert!(b == 1);
 assert!(c == 0.8785255653006182);
 assert!(d == true);
 ```
+
+# API Design
+
+TODO: sealed traits for organization
 
 # A Peek at the Assembly
 
@@ -240,6 +242,14 @@ statistical tests passed.
 
 The `examples/rng` executable writes random bytes to stdout, which you can use
 to run your own statistical tests.
+
+# Sampling From a Range
+
+TODO: Canon's method for u32 and u64
+
+# Sampling Floating-Point Numbers
+
+TODO: explain
 
 # Cargo Features
 

@@ -141,23 +141,13 @@ pub fn float_biunit_f64(g: &mut Rng) -> f64 {
 }
 
 #[inline(never)]
-pub fn random_bools(g: &mut Rng) -> [bool; 6] {
-  g.random(..)
+pub fn uniform_bools(g: &mut Rng) -> [bool; 6] {
+  g.uniform()
 }
 
 #[inline(never)]
-pub fn random_4u16(g: &mut Rng) -> [u16; 4] {
-  g.random(..)
-}
-
-#[inline(never)]
-pub fn random_6i16(g: &mut Rng) -> [i16; 6] {
-  g.random(..)
-}
-
-#[inline(never)]
-pub fn random_6u16(g: &mut Rng) -> [u16; 6] {
-  g.random(..)
+pub fn uniform_4u16(g: &mut Rng) -> [u16; 4] {
+  g.uniform()
 }
 
 #[inline(never)]
@@ -171,54 +161,43 @@ pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
 }
 
 #[inline(never)]
-pub fn random_6u32(g: &mut Rng) -> [u32; 6] {
-  g.random(..)
-}
-
-#[inline(never)]
-pub fn random_6d6(g: &mut Rng) -> [u32; 6] {
-  g.random([1 ..= 6])
-}
-
-#[inline(never)]
-pub fn random_range_to_inclusive_6u16(g: &mut Rng, n: u16) -> [u16; 6] {
-  g.random([..= n])
-}
-
-#[inline(never)]
-pub fn random_range_inclusive_6u16(g: &mut Rng, a: u16, b: u16) -> [u16; 6] {
-  g.random([a ..= b])
-}
-
-
-#[inline(never)]
 pub fn uniform_6u32(g: &mut Rng) -> [u32; 6] {
   g.uniform()
 }
 
 #[inline(never)]
+pub fn bounded_u32_5(g: &mut Rng) -> u32 {
+  g.bounded(5)
+}
+
+#[inline(never)]
+pub fn between_u32_1_6(g: &mut Rng) -> u32 {
+  g.between(1, 6)
+}
+
+#[inline(never)]
 pub fn fill_u8(g: &mut Rng, buf: &mut [u8]) {
-  g.fill(.., buf)
+  g.fill(buf)
 }
 
 #[inline(never)]
 pub fn fill_i16(g: &mut Rng, buf: &mut [i16]) {
-  g.fill(.., buf)
+  g.fill(buf)
 }
 
 #[inline(never)]
 pub fn fill_u16(g: &mut Rng, buf: &mut [u16]) {
-  g.fill(.., buf)
+  g.fill(buf)
 }
 
 #[inline(never)]
 pub fn fill_u32(g: &mut Rng, buf: &mut [u32]) {
-  g.fill(.., buf)
+  g.fill(buf)
 }
 
 #[inline(never)]
 pub fn fill_u64(g: &mut Rng, buf: &mut [u64]) {
-  g.fill(.., buf)
+  g.fill(buf)
 }
 
 #[inline(never)]
