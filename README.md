@@ -13,14 +13,16 @@ the performance of surrounding code.
 
 ```
 let mut g = dandelion::Rng::new(std::num::NonZeroU128::MIN);
-let a: u64 = g.uniform();
+let a: u32 = g.uniform();
 let b: u64 = g.between(1, 6);
 let c: f64 = g.float();
 let d = g.bernoulli(0.75);
-assert!(a == 11430558048722533601);
-assert!(b == 1);
-assert!(c == 0.8785255653006182);
-assert!(d == true);
+let e: [i16; 3] = g.uniform();
+std::assert_matches!(a, 3465985249);
+std::assert_matches!(b, 1);
+std::assert_matches!(c, 0.8785255653006182);
+std::assert_matches!(d, true);
+std::assert_matches!(e, [27556, -21468, 12281]);
 ```
 
 # API Design

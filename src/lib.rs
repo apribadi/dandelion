@@ -183,6 +183,9 @@ impl Rng {
 
   /// Fills a slice with `T`s sampled from the uniform distribution over all
   /// possible values of type `T`.
+  ///
+  /// Some types, e.g. `u16`, are generated more efficiently in bulk than one
+  /// at a time.
   #[inline]
   pub fn fill<T: RandomUniform>(&mut self, buf: &mut [T]) {
     T::random_fill(self, buf)
