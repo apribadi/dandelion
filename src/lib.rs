@@ -814,7 +814,6 @@ pub mod thread_local {
   //! Access a thread-local random number generator.
 
   use std::cell::Cell;
-  use std::hint::cold_path;
   use std::num::NonZeroU128;
   use std::thread_local;
   use super::RandomBetween;
@@ -843,16 +842,20 @@ pub mod thread_local {
   /// - a previous call to `with` panicked.
   #[inline(always)]
   pub fn with<T>(f: impl FnOnce(&mut Rng) -> T) -> T {
-    RNG.with(|&(ref state, ref is_initialized)| {
+    #[inline(never)]
+    #[cold]
+    fn slow_path(is_init: &Cell<bool>) -> Rng {
+      assert!(! is_init.replace(true));
+      Rng::from_operating_system()
+    }
+    RNG.with(|&(ref state, ref is_init)| {
       let mut g =
         if let Some(s) = state.get() {
           Rng::from_state(s)
         } else {
-          cold_path();
-          assert!(! is_initialized.replace(true));
-          Rng::from_operating_system()
+          slow_path(is_init)
         };
-      state.set(None); // NOTE: this write is often elided
+      state.set(None); // This write is often elided.
       let x = f(&mut g);
       state.set(Some(g.state()));
       x
