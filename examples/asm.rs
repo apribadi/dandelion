@@ -57,15 +57,6 @@ pub fn bounded_u64(g: &mut Rng, n: u64) -> u64 {
 }
 
 #[inline(never)]
-pub fn bounded_u64_loop(g: &mut Rng, n: u64) -> u64 {
-  let mut x = 0u64;
-  for _ in 0 .. 100 {
-    x ^= g.bounded(n);
-  }
-  x
-}
-
-#[inline(never)]
 pub fn bounded_u64_0(g: &mut Rng) -> u64 {
   g.bounded(0)
 }
@@ -81,17 +72,17 @@ pub fn bounded_usize(g: &mut Rng, n: usize) -> usize {
 }
 
 #[inline(never)]
-pub fn between_isize(g: &mut Rng, lo: isize, hi: isize) -> isize {
-  g.between(lo, hi)
-}
-
-#[inline(never)]
 pub fn between_u32(g: &mut Rng, lo: u32, hi: u32) -> u32 {
   g.between(lo, hi)
 }
 
 #[inline(never)]
 pub fn between_u64(g: &mut Rng, lo: u64, hi: u64) -> u64 {
+  g.between(lo, hi)
+}
+
+#[inline(never)]
+pub fn between_isize(g: &mut Rng, lo: isize, hi: isize) -> isize {
   g.between(lo, hi)
 }
 
@@ -158,21 +149,6 @@ pub fn uniform_6i16(g: &mut Rng) -> [i16; 6] {
 #[inline(never)]
 pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
   g.uniform()
-}
-
-#[inline(never)]
-pub fn uniform_6u32(g: &mut Rng) -> [u32; 6] {
-  g.uniform()
-}
-
-#[inline(never)]
-pub fn bounded_u32_5(g: &mut Rng) -> u32 {
-  g.bounded(5)
-}
-
-#[inline(never)]
-pub fn between_u32_1_6(g: &mut Rng) -> u32 {
-  g.between(1, 6)
 }
 
 #[inline(never)]

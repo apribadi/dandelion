@@ -45,9 +45,9 @@ pub trait RandomUniform: private::RandomUniform {
 pub trait RandomBounded: private::RandomBounded {
 }
 
-/// A sealed trait for sampling from the uniform distribution over a range from
-/// an inclusive lower bounded to an inclusive upper bound. The range is
-/// permitted to wrap around from the maximum to the minimum value of the type.
+/// A sealed trait for sampling from the uniform distribution over a range
+/// between inclusive lower and upper bounds. The range is permitted to wrap
+/// around from the maximum to the minimum value of the type.
 ///
 /// See [`Rng::between`].
 #[allow(private_bounds)]
@@ -68,31 +68,6 @@ pub trait RandomFloat: private::RandomFloat {
 //
 // and instead do each marker impl by itself so that the documentation for the
 // trait has a full list of impls.
-
-#[inline(always)]
-const fn concat(x: u64, y: u64) -> u128 {
-  x as u128 ^ (y as u128) << 64
-}
-
-#[inline(always)]
-const fn lo(x: u128) -> u64 {
-  x as u64
-}
-
-#[inline(always)]
-const fn hi(x: u128) -> u64 {
-  (x >> 64) as u64
-}
-
-#[inline(always)]
-const fn asr(x: u64, a: usize) -> u64 {
-  ((x as i64) >> a) as u64
-}
-
-#[inline(always)]
-const fn lsl(x: u64, a: usize) -> u64 {
-  x << a
-}
 
 #[inline(always)]
 const fn mulhi(x: u64, y: u64) -> u64 {
@@ -123,7 +98,7 @@ impl Rng {
   /// Creates a random number generator with an initial state derived by
   /// hashing the given `u64` seed.
   pub const fn from_u64(seed: u64) -> Self {
-    let s = concat(seed, 1);
+    let s = (1 << 64) ^ (seed as u128);
     let s = unsafe { NonZeroU128::new_unchecked(s) };
     Self::new(s)
   }
@@ -170,9 +145,11 @@ impl Rng {
   #[inline(always)]
   pub const fn next(&mut self) -> u64 {
     let s = self.state.get();
-    let x = lo(s);
-    let y = hi(s);
-    let s = concat(y ^ asr(x, 4), x ^ lsl(y, 7));
+    let x = s as u64;
+    let y = (s >> 64) as u64;
+    let u = y ^ (x.cast_signed() >> 4).cast_unsigned();
+    let v = x ^ (y << 7);
+    let s = (u as u128) ^ ((v as u128) << 64);
     let s = unsafe { NonZeroU128::new_unchecked(s) };
     self.state = s;
     y.wrapping_add(x.wrapping_mul(x)) ^ mulhi(x, x)
@@ -379,7 +356,7 @@ impl RandomUniform for bool {
 impl private::RandomUniform for bool {
   #[inline(always)]
   fn random_uniform(g: &mut Rng) -> Self {
-    (g.next() as i64) < 0
+    g.next().cast_signed() < 0
   }
 
   #[inline(always)]
@@ -488,7 +465,7 @@ impl RandomUniform for u128 {
 impl private::RandomUniform for u128 {
   #[inline(always)]
   fn random_uniform(g: &mut Rng) -> Self {
-    concat(g.next(), g.next())
+    (g.next() as u128) ^ ((g.next() as u128) << 64)
   }
 }
 
@@ -706,14 +683,14 @@ impl RandomFloat for f32 {
 impl private::RandomFloat for f32 {
   #[inline(always)]
   fn random_float(g: &mut Rng) -> Self {
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = f32::from_bits(0x2000_0000) * (x as f32);
     x.abs()
   }
 
   #[inline(always)]
   fn random_float_biunit(g: &mut Rng) -> Self {
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = (x & 1) + (x >> 1);
     f32::from_bits(0x2080_0000) * (x as f32)
   }
@@ -730,7 +707,7 @@ impl private::RandomFloat for f64 {
     //   scvtf d0, x8, #63
     //   fabs d0, d0
     //
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = f64::from_bits(0x3c00_0000_0000_0000) * (x as f64);
     x.abs()
   }
@@ -743,7 +720,7 @@ impl private::RandomFloat for f64 {
     //   add x2, x1, x0, asr #1
     //   scvtf d0, x2, #62
     //
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = (x & 1) + (x >> 1);
     f64::from_bits(0x3c10_0000_0000_0000) * (x as f64)
   }
@@ -801,7 +778,7 @@ impl rand_core::SeedableRng for Rng {
   fn try_from_rng<T: rand_core::TryRng + ?Sized>(g: &mut T) -> Result<Self, T::Error> {
     let x = g.try_next_u64()?;
     let y = g.try_next_u64()?;
-    let s = 1 | concat(x, y);
+    let s = 1 | ((x as u128) ^ ((y as u128) << 64));
     let s = unsafe { NonZeroU128::new_unchecked(s) };
     Ok(Self::from_state(s))
   }
@@ -923,7 +900,6 @@ mod private {
       array::from_fn(|_| Self::random_uniform(g))
     }
 
-    #[inline]
     fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
       buf.iter_mut().for_each(|a| *a = Self::random_uniform(g));
     }
@@ -941,5 +917,65 @@ mod private {
     fn random_float(_: &mut Rng) -> Self;
 
     fn random_float_biunit(_: &mut Rng) -> Self;
+  }
+}
+
+pub mod experimental {
+  #![allow(missing_docs)]
+
+  pub struct Rng32_16 { state: core::num::NonZeroU32 }
+
+  impl Rng32_16 {
+    pub const fn new(seed: core::num::NonZeroU32) -> Self {
+      const M: u32 = 0x93c4_67e3;
+      let x = seed.get();
+      let x = x.wrapping_mul(M);
+      let x = x.swap_bytes();
+      let x = x.wrapping_mul(M);
+      let x = x.swap_bytes();
+      let x = x.wrapping_mul(M);
+      let s = unsafe { core::num::NonZeroU32::new_unchecked(x) };
+      Self { state: s }
+    }
+
+    pub const fn next(&mut self) -> u16 {
+      let s = self.state.get();
+      let x = s as u16;
+      let y = (s >> 16) as u16;
+      let u = y ^ (x.cast_signed() >> 3).cast_unsigned();
+      let v = x ^ (y << 5);
+      let s = (u as u32) ^ ((v as u32) << 16);
+      let s = unsafe { core::num::NonZeroU32::new_unchecked(s) };
+      self.state = s;
+      y.wrapping_add(x.wrapping_mul(x)) ^ ((((x as u32) * (x as u32)) >> 16) as u16)
+    }
+  }
+
+  pub struct Rng64_32 { state: core::num::NonZeroU64 }
+
+  impl Rng64_32 {
+    pub const fn new(seed: core::num::NonZeroU64) -> Self {
+      const M: u64 = 0x93c4_67e3_7db0_c7a5;
+      let x = seed.get();
+      let x = x.wrapping_mul(M);
+      let x = x.swap_bytes();
+      let x = x.wrapping_mul(M);
+      let x = x.swap_bytes();
+      let x = x.wrapping_mul(M);
+      let s = unsafe { core::num::NonZeroU64::new_unchecked(x) };
+      Self { state: s }
+    }
+
+    pub const fn next(&mut self) -> u32 {
+      let s = self.state.get();
+      let x = s as u32;
+      let y = (s >> 32) as u32;
+      let u = y ^ (x.cast_signed() >> 7).cast_unsigned();
+      let v = x ^ (y << 10);
+      let s = (u as u64) ^ ((v as u64) << 32);
+      let s = unsafe { core::num::NonZeroU64::new_unchecked(s) };
+      self.state = s;
+      y.wrapping_add(x.wrapping_mul(x)) ^ ((((x as u64) * (x as u64)) >> 32) as u32)
+    }
   }
 }
