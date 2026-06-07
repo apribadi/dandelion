@@ -87,8 +87,12 @@ fn bench_u64<T: RngForBench>(bencher: Bencher<'_, '_>) {
 #[divan::bench(types = [DoubleDandelion, Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
 fn bench_u64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
+  fn u64<T: RngForBench>(rng: &mut T) -> u64 {
+    rng.u64()
+  }
+  #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N]) {
-    for elt in buf.iter_mut() { *elt = rng.u64_noinline(); }
+    for elt in buf.iter_mut() { *elt = u64(rng); }
   }
   let mut buf = [0u64; N];
   let mut rng = T::from_u64(black_box(0));

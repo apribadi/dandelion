@@ -16,9 +16,6 @@ pub(crate) trait RngForBench: Clone {
   fn shuffle<T>(&mut self, slice: &mut [T]);
 
   #[inline(never)]
-  fn u64_noinline(&mut self) -> u64 { self.u64() }
-
-  #[inline(never)]
   fn range_u64_noinline(&mut self, lo: u64, hi: u64) -> u64 { self.range_u64(lo, hi) }
 
   #[inline(never)]

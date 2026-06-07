@@ -570,25 +570,6 @@ impl<const N: usize, T: RandomUniform> private::RandomUniform for [T; N] {
   }
 }
 
-impl RandomUniform for () {
-}
-
-impl private::RandomUniform for () {
-  #[inline(always)]
-  fn random_uniform(_: &mut Rng) -> Self {
-  }
-}
-
-impl<A: RandomUniform, B: RandomUniform> RandomUniform for (A, B) {
-}
-
-impl<A: RandomUniform, B: RandomUniform> private::RandomUniform for (A, B) {
-  #[inline]
-  fn random_uniform(g: &mut Rng) -> Self {
-    (A::random_uniform(g), B::random_uniform(g))
-  }
-}
-
 impl RandomBounded for usize {
 }
 
@@ -850,6 +831,8 @@ pub mod thread_local {
 
   /// ???
   ///
+  /// Note that `with` is *not* re-entrant!
+  ///
   /// # Panics
   ///
   /// Panics if
@@ -862,15 +845,12 @@ pub mod thread_local {
   pub fn with<T>(f: impl FnOnce(&mut Rng) -> T) -> T {
     RNG.with(|&(ref state, ref is_initialized)| {
       let mut g =
-        match state.get() {
-          None => {
-            cold_path();
-            assert!(! is_initialized.replace(true));
-            Rng::from_operating_system()
-          }
-          Some(s) => {
-            Rng::from_state(s)
-          }
+        if let Some(s) = state.get() {
+          Rng::from_state(s)
+        } else {
+          cold_path();
+          assert!(! is_initialized.replace(true));
+          Rng::from_operating_system()
         };
       state.set(None); // NOTE: this write is often elided
       let x = f(&mut g);
