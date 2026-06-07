@@ -213,6 +213,15 @@ pub fn thread_local_u64() -> u64 {
 
 #[cfg(feature = "thread_local")]
 #[inline(never)]
+pub fn thread_local_u64x3() -> u64 {
+  let x = dandelion::thread_local::uniform::<u64>();
+  let y = dandelion::thread_local::uniform::<u64>();
+  let z = dandelion::thread_local::uniform::<u64>();
+  x ^ y ^ z
+}
+
+#[cfg(feature = "thread_local")]
+#[inline(never)]
 pub fn thread_local_u64_loop() -> u64 {
   let mut x = 0;
   for _ in 0 .. 100 {
@@ -220,6 +229,7 @@ pub fn thread_local_u64_loop() -> u64 {
   }
   x
 }
+
 
 #[cfg(feature = "rand_core")]
 #[inline(never)]

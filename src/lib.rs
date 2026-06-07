@@ -150,9 +150,13 @@ impl Rng {
 
   /// Creates a random number generator with a random seed retrieved from the
   /// operating system.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `getrandom` fails to retrieve random bytes from the operating
+  /// system.
   #[cfg(feature = "getrandom")]
   #[inline(never)]
-  #[cold]
   pub fn from_operating_system() -> Self {
     let mut buf = [0; 16];
     getrandom::fill(&mut buf).expect("getrandom::fill failed!");
@@ -188,7 +192,7 @@ impl Rng {
   /// at a time.
   #[inline]
   pub fn fill<T: RandomUniform>(&mut self, buf: &mut [T]) {
-    T::random_fill(self, buf)
+    T::random_uniform_fill(self, buf)
   }
 
   /// Samples a `T` from the uniform distribution over a range from zero
@@ -385,7 +389,7 @@ impl private::RandomUniform for bool {
     buf
   }
 
-  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+  fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
     unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_8p) };
   }
 }
@@ -421,7 +425,7 @@ impl private::RandomUniform for u8 {
     buf
   }
 
-  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+  fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
     unsafe { g.fill_unchecked_b(buf.as_mut_ptr(), buf.len()) };
   }
 }
@@ -442,7 +446,7 @@ impl private::RandomUniform for u16 {
     buf
   }
 
-  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+  fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
     unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_4h) };
   }
 }
@@ -463,7 +467,7 @@ impl private::RandomUniform for u32 {
     buf
   }
 
-  fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+  fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
     unsafe { g.fill_unchecked__(buf.as_mut_ptr(), buf.len(), Rng::next_2w) };
   }
 }
@@ -506,13 +510,13 @@ macro_rules! int_uniform_impls {
       }
 
       #[inline]
-      fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+      fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
         // SAFETY:
         // - iX and uX have compatible representations
         // - Rust does not do TBAA
         // - int_uniform_impls! is not exposed, and is used correctly at its
         //   only usage site
-        <$uint>::random_fill(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
+        <$uint>::random_uniform_fill(g, unsafe { transmute::<_, &'_ mut [$uint]>(buf) });
       }
     }
 
@@ -829,6 +833,7 @@ pub mod thread_local {
   //! Access a thread-local random number generator.
 
   use std::cell::Cell;
+  use std::hint::cold_path;
   use std::num::NonZeroU128;
   use std::thread_local;
   use super::RandomBetween;
@@ -838,21 +843,36 @@ pub mod thread_local {
   use super::Rng;
 
   thread_local! {
-    static RNG: Cell<Option<NonZeroU128>> = const {
-      Cell::new(None)
+    static RNG: (Cell<Option<NonZeroU128>>, Cell<bool>) = const {
+      (Cell::new(None), Cell::new(false))
     };
   }
 
-  // This function, while safe, is NOT logically re-entrant, so we should not
-  // expose it publicly.
+  /// ???
+  ///
+  /// # Panics
+  ///
+  /// Panics if
+  ///
+  /// - `getrandom` fails to retrieve random bytes from the operating system,
+  /// - another `thread_local` opeation is attempted in the dynamic extent of
+  ///   the call to `with`, or
+  /// - a previous call to `with` panicked.
   #[inline(always)]
-  fn with<T>(f: impl FnOnce(&mut Rng) -> T) -> T {
-    RNG.with(|state| {
+  pub fn with<T>(f: impl FnOnce(&mut Rng) -> T) -> T {
+    RNG.with(|&(ref state, ref is_initialized)| {
       let mut g =
         match state.get() {
-          None => Rng::from_operating_system(),
-          Some(s) => Rng::from_state(s),
+          None => {
+            cold_path();
+            assert!(! is_initialized.replace(true));
+            Rng::from_operating_system()
+          }
+          Some(s) => {
+            Rng::from_state(s)
+          }
         };
+      state.set(None); // NOTE: this write is often elided
       let x = f(&mut g);
       state.set(Some(g.state()));
       x
@@ -921,7 +941,7 @@ mod private {
     }
 
     #[inline]
-    fn random_fill(g: &mut Rng, buf: &mut [Self]) {
+    fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
       buf.iter_mut().for_each(|a| *a = Self::random_uniform(g));
     }
   }
