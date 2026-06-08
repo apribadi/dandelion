@@ -11,7 +11,7 @@ trait W
   + std::ops::BitXor<Output = Self>
   + std::ops::Shl<usize, Output = Self>
 {
-  const BITS: usize;
+  const BITS: u32;
 
   const I: Self::M;
 
@@ -54,8 +54,17 @@ trait W
   }
 
   fn check() {
-    for a in 1 .. Self::BITS {
-      for b in 1 .. Self::BITS {
+    let _: () = const {
+      let mut a = 1u128;
+      let mut i = 0;
+      while i < Self::PRIMES.len() {
+        a *= Self::PRIMES[i];
+        i += 1;
+      }
+      assert!(a == Self::FULL_PERIOD);
+    };
+    for a in 1 .. Self::BITS as usize {
+      for b in 1 .. Self::BITS as usize {
         let m = Self::make_mat(|x, y| (y ^ Self::lsl(x, a), x ^ Self::asr(y, b)));
         if Self::pow_full(m) == m && Self::pow(m, Self::FULL_PERIOD) == Self::I {
           'fail: {
@@ -74,7 +83,7 @@ trait W
 }
 
 impl W for u16 {
-  const BITS: usize = 16;
+  const BITS: u32 = Self::BITS;
 
   const I: Self::M = Bm32::I;
 
@@ -96,13 +105,13 @@ impl W for u16 {
 
   fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(f: F) -> Self::M {
     let mut a = Bm32::ZERO;
-    for j in 0 .. 32 {
+    for j in 0 .. 2 * Self::BITS {
       let x = 1u32 << j;
-      let y = f(x as Self, (x >> 16) as Self);
-      let y = (y.0 as u32) ^ ((y.1 as u32) << 16);
-      for i in 0usize .. 32 {
+      let y = f(x as Self, (x >> Self::BITS) as Self);
+      let y = (y.0 as u32) ^ ((y.1 as u32) << Self::BITS);
+      for i in 0 .. 2 * Self::BITS {
         if y & (1 << i) != 0 {
-          a.set(i, j, true);
+          a.set(i as usize, j as usize, true);
         }
       }
     }
@@ -111,7 +120,7 @@ impl W for u16 {
 }
 
 impl W for u32 {
-  const BITS: usize = 32;
+  const BITS: u32 = Self::BITS;
 
   const I: Self::M = Bm64::I;
 
@@ -135,13 +144,13 @@ impl W for u32 {
 
   fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(f: F) -> Self::M {
     let mut a = Bm64::ZERO;
-    for j in 0 .. 64 {
+    for j in 0 .. 2 * Self::BITS {
       let x = 1u64 << j;
-      let y = f(x as Self, (x >> 32) as Self);
-      let y = (y.0 as u64) ^ ((y.1 as u64) << 32);
-      for i in 0usize .. 64 {
+      let y = f(x as Self, (x >> Self::BITS) as Self);
+      let y = (y.0 as u64) ^ ((y.1 as u64) << Self::BITS);
+      for i in 0 .. 2 * Self::BITS {
         if y & (1 << i) != 0 {
-          a.set(i, j, true);
+          a.set(i as usize, j as usize, true);
         }
       }
     }
@@ -150,7 +159,7 @@ impl W for u32 {
 }
 
 impl W for u64 {
-  const BITS: usize = 64;
+  const BITS: u32 = Self::BITS;
 
   const I: Self::M = Bm128::I;
 
@@ -176,13 +185,13 @@ impl W for u64 {
 
   fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(f: F) -> Self::M {
     let mut a = Bm128::ZERO;
-    for j in 0 .. 128 {
+    for j in 0 .. 2 * Self::BITS {
       let x = 1u128 << j;
-      let y = f(x as Self, (x >> 64) as Self);
-      let y = (y.0 as u128) ^ ((y.1 as u128) << 64);
-      for i in 0usize .. 128 {
+      let y = f(x as Self, (x >> Self::BITS) as Self);
+      let y = (y.0 as u128) ^ ((y.1 as u128) << Self::BITS);
+      for i in 0 .. 2 * Self::BITS {
         if y & (1 << i) != 0 {
-          a.set(i, j, true);
+          a.set(i as usize, j as usize, true);
         }
       }
     }
