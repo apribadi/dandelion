@@ -3,7 +3,7 @@
 use std::io::Write as _;
 
 fn main() {
-  let mut rng = dandelion::experimental::Rng32_16::new(std::num::NonZeroU32::MIN);
+  let mut rng = dandelion::miniature::Rng16x2::new(std::num::NonZeroU32::MIN);
   let mut buf = [0u8; 1 << 16];
   let mut out = std::io::stdout().lock();
 

@@ -152,6 +152,16 @@ pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
 }
 
 #[inline(never)]
+pub fn uniform_6i32(g: &mut Rng) -> [i32; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6u32(g: &mut Rng) -> [u32; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
 pub fn fill_u8(g: &mut Rng, buf: &mut [u8]) {
   g.fill(buf)
 }
@@ -220,12 +230,12 @@ pub fn try_fork(g: &mut Rng) -> Result<Rng, rand_core::Infallible> {
 }
 
 #[inline(never)]
-pub fn rng32_16(g: &mut dandelion::experimental::Rng32_16) -> u16 {
+pub fn rng16x2(g: &mut dandelion::miniature::Rng16x2) -> u16 {
   g.next()
 }
 
 #[inline(never)]
-pub fn rng64_32(g: &mut dandelion::experimental::Rng64_32) -> u32 {
+pub fn rng32x2(g: &mut dandelion::miniature::Rng32x2) -> u32 {
   g.next()
 }
 
