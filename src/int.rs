@@ -11,9 +11,9 @@ pub(crate) trait Widenable {
 pub(crate) trait Narrowable {
   type Narrow;
 
-  fn lo(_: Self) -> Self::Narrow;
+  fn lower(_: Self) -> Self::Narrow;
 
-  fn hi(_: Self) -> Self::Narrow;
+  fn upper(_: Self) -> Self::Narrow;
 }
 
 #[inline(always)]
@@ -26,12 +26,12 @@ pub(crate) fn widening_mul<T: Widenable>(x: T, y: T) -> T::Wide {
   T::widening_mul(x, y)
 }
 
-pub(crate) fn lo<T: Narrowable>(x: T) -> T::Narrow {
-  T::lo(x)
+pub(crate) fn lower<T: Narrowable>(x: T) -> T::Narrow {
+  T::lower(x)
 }
 
-pub(crate) fn hi<T: Narrowable>(x: T) -> T::Narrow {
-  T::hi(x)
+pub(crate) fn upper<T: Narrowable>(x: T) -> T::Narrow {
+  T::upper(x)
 }
 
 macro_rules! int_widenable_narrowable_impls {
@@ -55,12 +55,12 @@ macro_rules! int_widenable_narrowable_impls {
       type Narrow = $narrow;
 
       #[inline(always)]
-      fn lo(x: Self) -> Self::Narrow {
+      fn lower(x: Self) -> Self::Narrow {
         x as Self::Narrow
       }
 
       #[inline(always)]
-      fn hi(x: Self) -> Self::Narrow {
+      fn upper(x: Self) -> Self::Narrow {
         (x >> Self::Narrow::BITS) as Self::Narrow
       }
     }

@@ -1,9 +1,10 @@
+#![allow(missing_docs)]
 #![allow(unused)]
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-struct BM8(u64);
+struct Bm8(u64);
 
-impl BM8 {
+impl Bm8 {
   const ZERO: Self = Self(0);
 
   const I: Self = Self(0x8040_2010_0804_0201);
@@ -34,7 +35,7 @@ impl BM8 {
   }
 }
 
-impl std::ops::Add<Self> for BM8 {
+impl std::ops::Add<Self> for Bm8 {
   type Output = Self;
 
   fn add(self, rhs: Self) -> Self::Output {
@@ -42,7 +43,7 @@ impl std::ops::Add<Self> for BM8 {
   }
 }
 
-impl std::ops::Mul<Self> for BM8 {
+impl std::ops::Mul<Self> for Bm8 {
   type Output = Self;
 
   fn mul(self, rhs: Self) -> Self::Output {
@@ -51,16 +52,16 @@ impl std::ops::Mul<Self> for BM8 {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) struct BM8N<const N: usize>([[BM8; N]; N]);
+pub(crate) struct Bm8n<const N: usize>([[Bm8; N]; N]);
 
-impl<const N: usize> BM8N<N> {
-  pub(crate) const ZERO: Self = Self([[BM8::ZERO; N]; N]);
+impl<const N: usize> Bm8n<N> {
+  pub(crate) const ZERO: Self = Self([[Bm8::ZERO; N]; N]);
 
   pub(crate) const I: Self = {
     let mut x = Self::ZERO;
     let mut i = 0;
     while i < N {
-      x.0[i][i] = BM8::I;
+      x.0[i][i] = Bm8::I;
       i += 1;
     }
     x
@@ -70,7 +71,7 @@ impl<const N: usize> BM8N<N> {
   fn mul(out: &mut Self, x: &Self, y: &Self) {
     for i in 0 .. N {
       for j in 0 .. N {
-        let mut a = BM8::ZERO;
+        let mut a = Bm8::ZERO;
         for k in 0 .. N {
           a = a + x.0[i][k] * y.0[k][j];
         }
@@ -80,15 +81,15 @@ impl<const N: usize> BM8N<N> {
   }
 
   pub(crate) fn get(&self, i: usize, j: usize) -> bool {
-    self.0[i >> 3 & N - 1][j >> 3 & N - 1].get(i & 7, j & 7)
+    self.0[i >> 3 & N - 1][j >> 3 & N - 1].get(i & 8 - 1, j & 8 - 1)
   }
 
   pub(crate) fn set(&mut self, i: usize, j: usize, value: bool) {
-    self.0[i >> 3 & N - 1][j >> 3 & N - 1].set(i & 7, j & 7, value)
+    self.0[i >> 3 & N - 1][j >> 3 & N - 1].set(i & 8 - 1, j & 8 - 1, value)
   }
 }
 
-impl<const N: usize> std::ops::Mul<Self> for BM8N<N> {
+impl<const N: usize> std::ops::Mul<Self> for Bm8n<N> {
   type Output = Self;
 
   #[inline(always)]
@@ -99,70 +100,8 @@ impl<const N: usize> std::ops::Mul<Self> for BM8N<N> {
   }
 }
 
-pub(crate) type BM128 = BM8N<16>;
-pub(crate) type BM64 = BM8N<8>;
-pub(crate) type BM32 = BM8N<4>;
+pub(crate) type Bm32 = Bm8n<4>;
 
-/*
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) struct BM64(BM8N<8>);
+pub(crate) type Bm64 = Bm8n<8>;
 
-impl BM64 {
-  pub(crate) const ZERO: Self = Self(BM8N::ZERO);
-
-  pub(crate) const I: Self = Self(BM8N::I);
-
-  pub(crate) fn get(&self, i: usize, j: usize) -> bool {
-    self.0.get(i, j)
-  }
-
-  pub(crate) fn set(&mut self, i: usize, j: usize, value: bool) {
-    self.0.set(i, j, value)
-  }
-}
-
-impl std::ops::Mul<Self> for BM64 {
-  type Output = Self;
-
-  fn mul(self, rhs: Self) -> Self::Output {
-    Self(self.0 * rhs.0)
-  }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) struct BM128(BM8N<16>);
-
-impl BM128 {
-  pub(crate) const ZERO: Self = Self(BM8N::ZERO);
-
-  pub(crate) const I: Self = Self(BM8N::I);
-
-  pub(crate) fn get(&self, i: usize, j: usize) -> bool {
-    self.0.get(i, j)
-  }
-
-  pub(crate) fn set(&mut self, i: usize, j: usize, value: bool) {
-    self.0.set(i, j, value)
-  }
-}
-
-impl std::ops::Mul<Self> for BM128 {
-  type Output = Self;
-
-  fn mul(self, rhs: Self) -> Self::Output {
-    Self(self.0 * rhs.0)
-  }
-}
-*/
-
-impl std::fmt::Display for BM128 {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    for i in 0 .. 128 {
-      for j in 0 .. 128 {
-        write!(f, "{}", if self.get(i, j) { 1 } else { 0 })?;
-      }
-      write!(f, "\n")?;
-    }
-    Ok(())
-  }
-}
+pub(crate) type Bm128 = Bm8n<16>;

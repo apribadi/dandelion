@@ -34,14 +34,14 @@ TODO: sealed traits for organization
 On `aarch64` generating one `u64` looks like:
 
 ```text
-u64:
+next_u64:
     ldp x8, x9, [x0]
-    eor x10, x9, x8, asr #4
-    eor x11, x8, x9, lsl #7
+    eor x10, x9, x8, lsl #7
+    eor x11, x8, x9, asr #4
     stp x10, x11, [x0]
-    madd x9, x8, x8, x9
-    umulh x8, x8, x8
-    eor x0, x9, x8
+    umulh x10, x8, x8
+    madd x8, x8, x8, x9
+    eor x0, x8, x10
     ret
 ```
 
@@ -249,9 +249,63 @@ to run your own statistical tests.
 
 TODO: Canon's method for u32 and u64
 
+```text
+bounded_u64:
+    ldp x8, x11, [x0]
+    eor x9, x11, x8, lsl #7
+    eor x10, x8, x11, asr #4
+    umulh x12, x8, x8
+    madd x8, x8, x8, x11
+    eor x8, x8, x12
+    adds x11, x1, #1
+    mul x12, x8, x11
+    umulh x13, x8, x11
+    csel x8, x8, x13, hs
+    cmn x12, x1
+    b.lo L3
+    mov x8, x13
+L2:
+    mov x13, x9
+    eor x9, x10, x9, lsl #7
+    madd x14, x13, x13, x10
+    eor x10, x13, x10, asr #4
+    umulh x13, x13, x13
+    eor x13, x14, x13
+    umulh x14, x13, x11
+    adds x14, x12, x14
+    mul x12, x13, x11
+    cinc x8, x8, hs
+    cmn x14, #1
+    b.eq L2
+L3:
+    stp x9, x10, [x0]
+    mov x0, x8
+    ret
+```
+
 # Sampling Floating-Point Numbers
 
 TODO: explain
+
+```text
+f64:
+    ldp x8, x9, [x0]
+    eor x10, x9, x8, lsl #7
+    eor x11, x8, x9, asr #4
+    stp x10, x11, [x0]
+    umulh x10, x8, x8
+    madd x8, x8, x8, x9
+    eor x8, x8, x10
+    scvtf d0, x8, #63
+    fabs d0, d0
+    ret
+```
+
+# Sampling Multiple Uniform Small Integers
+
+TODO: explain
+
+# Thread Local Generator
 
 # Cargo Features
 
