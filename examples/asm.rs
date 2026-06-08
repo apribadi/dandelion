@@ -22,17 +22,17 @@ pub fn bool(g: &mut Rng) -> bool {
 }
 
 #[inline(never)]
-pub fn uniform_u32(g: &mut Rng) -> u32 {
+pub fn u32(g: &mut Rng) -> u32 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn uniform_u64(g: &mut Rng) -> u64 {
+pub fn u64(g: &mut Rng) -> u64 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn uniform_u128(g: &mut Rng) -> u128 {
+pub fn u128(g: &mut Rng) -> u128 {
   g.uniform()
 }
 
@@ -92,17 +92,17 @@ pub fn between_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
 }
 
 #[inline(never)]
-pub fn uniform_non_zero_u32(g: &mut Rng) -> NonZeroU32 {
+pub fn non_zero_u32(g: &mut Rng) -> NonZeroU32 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn uniform_non_zero_u64(g: &mut Rng) -> NonZeroU64 {
+pub fn non_zero_u64(g: &mut Rng) -> NonZeroU64 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn uniform_non_zero_u128(g: &mut Rng) -> NonZeroU128 {
+pub fn non_zero_u128(g: &mut Rng) -> NonZeroU128 {
   g.uniform()
 }
 
@@ -217,6 +217,16 @@ pub fn fork(g: &mut Rng) -> Rng {
 #[inline(never)]
 pub fn try_fork(g: &mut Rng) -> Result<Rng, rand_core::Infallible> {
   <Rng as rand::SeedableRng>::try_fork(g)
+}
+
+#[inline(never)]
+pub fn rng32_16(g: &mut dandelion::experimental::Rng32_16) -> u16 {
+  g.next()
+}
+
+#[inline(never)]
+pub fn rng64_32(g: &mut dandelion::experimental::Rng64_32) -> u32 {
+  g.next()
 }
 
 #[inline(never)]

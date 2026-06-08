@@ -19,10 +19,10 @@ let c: f64 = g.float();
 let d = g.bernoulli(0.75);
 let e: [i16; 3] = g.uniform();
 std::assert_matches!(a, 3465985249);
-std::assert_matches!(b, 1);
-std::assert_matches!(c, 0.8785255653006182);
+std::assert_matches!(b, 6);
+std::assert_matches!(c, 0.9333146823381274);
 std::assert_matches!(d, true);
-std::assert_matches!(e, [27556, -21468, 12281]);
+std::assert_matches!(e, [-11392, 19564, 12621]);
 ```
 
 # API Design

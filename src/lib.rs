@@ -6,6 +6,8 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+mod int;
+
 use core::fmt::Debug;
 use core::fmt::Formatter;
 use core::fmt;
@@ -24,6 +26,8 @@ use core::num::NonZeroU32;
 use core::num::NonZeroU64;
 use core::num::NonZeroU8;
 use core::num::NonZeroUsize;
+
+use crate::int::*;
 
 /// A high performance non-cryptographic random number generator.
 #[derive(Clone)]
@@ -143,16 +147,17 @@ impl Rng {
   /// Generates the next random number. This is the core operation of the
   /// random number generator from which other sampling routines are derived.
   #[inline(always)]
-  pub const fn next(&mut self) -> u64 {
+  pub fn next(&mut self) -> u64 {
     let s = self.state.get();
-    let x = s as u64;
-    let y = (s >> 64) as u64;
-    let u = y ^ (x.cast_signed() >> 4).cast_unsigned();
-    let v = x ^ (y << 7);
-    let s = (u as u128) ^ ((v as u128) << 64);
+    let x = lower(s);
+    let y = upper(s);
+    let u = y ^ (x << 7);
+    let v = x ^ (y.cast_signed() >> 4).cast_unsigned();
+    let s = catenate(u, v);
     let s = unsafe { NonZeroU128::new_unchecked(s) };
     self.state = s;
-    y.wrapping_add(x.wrapping_mul(x)) ^ mulhi(x, x)
+    let z = widening_mul(x, x);
+    y.wrapping_add(lower(z)) ^ upper(z)
   }
 
   /// Samples a `T` from the uniform distribution over all possible values of
@@ -923,6 +928,8 @@ mod private {
 pub mod experimental {
   #![allow(missing_docs)]
 
+  use crate::int::*;
+
   pub struct Rng32_16 { state: core::num::NonZeroU32 }
 
   impl Rng32_16 {
@@ -938,16 +945,18 @@ pub mod experimental {
       Self { state: s }
     }
 
-    pub const fn next(&mut self) -> u16 {
+    #[inline(always)]
+    pub fn next(&mut self) -> u16 {
       let s = self.state.get();
-      let x = s as u16;
-      let y = (s >> 16) as u16;
-      let u = y ^ (x.cast_signed() >> 3).cast_unsigned();
-      let v = x ^ (y << 5);
-      let s = (u as u32) ^ ((v as u32) << 16);
+      let x = lower(s);
+      let y = upper(s);
+      let u = y ^ (x << 5);
+      let v = x ^ (y.cast_signed() >> 3).cast_unsigned();
+      let s = catenate(u, v);
       let s = unsafe { core::num::NonZeroU32::new_unchecked(s) };
       self.state = s;
-      y.wrapping_add(x.wrapping_mul(x)) ^ ((((x as u32) * (x as u32)) >> 16) as u16)
+      let z = widening_mul(x, x);
+      y.wrapping_add(lower(z)) ^ upper(z)
     }
   }
 
@@ -966,16 +975,18 @@ pub mod experimental {
       Self { state: s }
     }
 
-    pub const fn next(&mut self) -> u32 {
+    #[inline(always)]
+    pub fn next(&mut self) -> u32 {
       let s = self.state.get();
-      let x = s as u32;
-      let y = (s >> 32) as u32;
-      let u = y ^ (x.cast_signed() >> 7).cast_unsigned();
-      let v = x ^ (y << 10);
-      let s = (u as u64) ^ ((v as u64) << 32);
+      let x = lower(s);
+      let y = upper(s);
+      let u = y ^ (x << 10);
+      let v = x ^ (y.cast_signed() >> 7).cast_unsigned();
+      let s = catenate(u, v);
       let s = unsafe { core::num::NonZeroU64::new_unchecked(s) };
       self.state = s;
-      y.wrapping_add(x.wrapping_mul(x)) ^ ((((x as u64) * (x as u64)) >> 32) as u32)
+      let z = widening_mul(x, x);
+      y.wrapping_add(lower(z)) ^ upper(z)
     }
   }
 }
