@@ -21,8 +21,8 @@ impl RngForBench for dandelion::Rng {
   fn f64(&mut self) -> f64 { self.float() }
   fn bernoulli(&mut self, p: f64) -> bool { self.bernoulli(p) }
   fn fill_b(&mut self, buf: &mut [u8]) { self.fill(buf); }
-  fn fill_h(&mut self, buf: &mut [u16]) { dandelion::Rng::fill(self, buf); }
-  fn shuffle<T>(&mut self, slice: &mut [T]) { self.shuffle(slice) }
+  fn fill_h(&mut self, buf: &mut [u16]) { self.fill(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { self.shuffle(slice); }
 }
 
 impl RngForBench for rand::rngs::SmallRng {

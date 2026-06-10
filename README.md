@@ -31,10 +31,10 @@ TODO: sealed traits for organization
 
 # A Peek at the Assembly
 
-On `aarch64` generating one `u64` looks like:
+The `aarch64` assembly for generating one `u64` looks like:
 
 ```text
-next_u64:
+next:
     ldp x8, x9, [x0]
     eor x10, x9, x8, lsl #7
     eor x11, x8, x9, asr #4
@@ -306,6 +306,15 @@ f64:
 TODO: explain
 
 # Thread Local Generator
+
+TODO: explain
+
+# Portability for Platform Endianness and Word Size
+
+Generator output does not depend on platform endianness.
+
+Word-sized output (e.g. `usize`, `isize`, ...) is produced as if the
+corresponding fixed size integers had been produced instead.
 
 # Cargo Features
 

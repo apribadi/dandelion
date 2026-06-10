@@ -221,7 +221,6 @@ pub fn thread_local_u64_loop() -> u64 {
   x
 }
 
-
 #[cfg(feature = "rand_core")]
 #[inline(never)]
 pub fn fork(g: &mut Rng) -> Rng {
