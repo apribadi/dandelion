@@ -26,12 +26,12 @@ use core::num::NonZeroUsize;
 #[derive(Clone, Eq, PartialEq)]
 pub struct Rng { state: NonZeroU128 }
 
-// NOTE: We do not do blanket a impl for the following traits like
+// NOTE: For the following traits, we do not do a blanket impl like
 //
 //   impl<T: private::RandomUniform> RandomUniform for T { }
 //
-// and instead do each impl individually so that the documentation for the
-// trait has a full list of impls.
+// and instead do each impl individually. This is so that the documentation for
+// the trait has a list of all the impls.
 
 /// A sealed trait for sampling from the uniform distribution over all possible
 /// values of the type.
@@ -41,24 +41,24 @@ pub struct Rng { state: NonZeroU128 }
 pub trait RandomUniform: private::RandomUniform {
 }
 
-/// A sealed trait for sampling from the uniform distribution over a range from
-/// zero to an inclusive upper bound.
+/// A sealed trait for sampling an integer from the uniform distribution over
+/// an inclusive range from zero to an upper bound.
 ///
 /// See [`Rng::bounded`].
 #[allow(private_bounds)]
 pub trait RandomBounded: private::RandomBounded {
 }
 
-/// A sealed trait for sampling from the uniform distribution over a range
-/// between inclusive lower and upper bounds. The range is permitted to wrap
-/// around from the maximum to the minimum value of the type.
+/// A sealed trait for sampling an integer from the uniform distribution over
+/// an inclusive range between lower and upper bounds. The range is permitted
+/// to wrap around from the maximum to the minimum value of the type.
 ///
 /// See [`Rng::between`].
 #[allow(private_bounds)]
 pub trait RandomBetween: private::RandomBetween {
 }
 
-/// A sealed trait for sampling floating point numbers from various
+/// A sealed trait for sampling a floating point number from various
 /// distributions.
 ///
 /// See [`Rng::float`] and [`Rng::float_biunit`].
@@ -108,7 +108,7 @@ impl Rng {
   /// Creates a random number generator with an initial state derived by
   /// hashing the given `u64` seed.
   pub const fn from_u64(seed: u64) -> Self {
-    let s = (1u128 << 64) | (seed as u128);
+    let s = catenate(seed, 1);
     Self::new(unsafe { NonZeroU128::new_unchecked(s) })
   }
 
@@ -170,8 +170,8 @@ impl Rng {
     T::random_uniform(self)
   }
 
-  /// Fills a slice with `T`s sampled from the uniform distribution over all
-  /// possible values of type `T`.
+  /// Fills a slice with `T`s each sampled from the uniform distribution over
+  /// all possible values of type `T`.
   ///
   /// Some types, e.g. `u16`, are generated more efficiently in bulk than one
   /// at a time.
@@ -180,16 +180,16 @@ impl Rng {
     T::random_uniform_fill(self, buf)
   }
 
-  /// Samples a `T` from the uniform distribution over a range from zero
-  /// to an inclusive upper bound `n`.
+  /// Samples an integer `T` from the uniform distribution over an inclusive
+  /// range from `0` to `n`.
   #[inline]
   pub fn bounded<T: RandomBounded>(&mut self, n: T) -> T {
     T::random_bounded(self, n)
   }
 
-  /// Samples a `T` from the uniform distribution over a range from an
-  /// inclusive lower bound `a` to an inclusive upper bound `b`. The range is
-  /// permitted to wrap around from `T::MAX` to `T::MIN`.
+  /// Samples an integer `T` from the uniform distribution over an inclusive
+  /// range from `a` to `b`. The range is permitted to wrap around from
+  /// `T::MAX` to `T::MIN`.
   #[inline]
   pub fn between<T: RandomBetween>(&mut self, a: T, b: T) -> T {
     T::random_between(self, a, b)
@@ -266,7 +266,7 @@ impl Rng {
   }
 
   #[inline(always)]
-  fn uniform_usize(&mut self) -> usize {
+  const fn uniform_usize(&mut self) -> usize {
     cfg_select! {
       target_pointer_width = "16" => { self.uniform_u16() as _ }
       target_pointer_width = "32" => { self.uniform_u32() as _ }
@@ -276,22 +276,22 @@ impl Rng {
   }
 
   #[inline(always)]
-  fn uniform_u8(&mut self) -> u8 {
+  const fn uniform_u8(&mut self) -> u8 {
     self.next() as _
   }
 
   #[inline(always)]
-  fn uniform_u16(&mut self) -> u16 {
+  const fn uniform_u16(&mut self) -> u16 {
     self.next() as _
   }
 
   #[inline(always)]
-  fn uniform_u32(&mut self) -> u32 {
+  const fn uniform_u32(&mut self) -> u32 {
     self.next() as _
   }
 
   #[inline(always)]
-  fn uniform_u128(&mut self) -> u128 {
+  const fn uniform_u128(&mut self) -> u128 {
     catenate(self.next(), self.next())
   }
 
@@ -475,7 +475,7 @@ impl Rng {
       }
     }
     *self = g;
-    a as u32
+    a as _
   }
 
   #[inline(always)]
@@ -507,28 +507,6 @@ impl Rng {
     }
     *self = g;
     a
-  }
-}
-
-impl RandomUniform for bool {
-}
-
-impl private::RandomUniform for bool {
-  #[inline(always)]
-  fn random_uniform(g: &mut Rng) -> Self {
-    (g.next() as i64) < 0
-  }
-
-  #[inline(always)]
-  fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
-    let mut buf = [false; N];
-    unsafe { g.fill_p_inlined(buf.as_mut_ptr(), buf.len()) };
-    buf
-  }
-
-  #[inline]
-  fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_p(buf.as_mut_ptr(), buf.len()) };
   }
 }
 
@@ -624,6 +602,28 @@ impl_uniform_for_ints! {
   i128, u128, NonZeroI128, NonZeroU128, uniform_u128, fill_q_inlined, fill_q;
 }
 
+impl RandomUniform for bool {
+}
+
+impl private::RandomUniform for bool {
+  #[inline(always)]
+  fn random_uniform(g: &mut Rng) -> Self {
+    g.next().cast_signed() < 0
+  }
+
+  #[inline(always)]
+  fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
+    let mut buf = [false; N];
+    unsafe { g.fill_p_inlined(buf.as_mut_ptr(), buf.len()) };
+    buf
+  }
+
+  #[inline]
+  fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
+    unsafe { g.fill_p(buf.as_mut_ptr(), buf.len()) };
+  }
+}
+
 impl<const N: usize, T: RandomUniform> RandomUniform for [T; N] {
 }
 
@@ -689,14 +689,14 @@ impl RandomFloat for f32 {
 impl private::RandomFloat for f32 {
   #[inline(always)]
   fn random_float(g: &mut Rng) -> Self {
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = f32::from_bits(0x2000_0000) * (x as f32);
     x.abs()
   }
 
   #[inline(always)]
   fn random_float_biunit(g: &mut Rng) -> Self {
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = (x & 1) + (x >> 1);
     f32::from_bits(0x2080_0000) * (x as f32)
   }
@@ -713,7 +713,7 @@ impl private::RandomFloat for f64 {
     //   scvtf d0, x8, #63
     //   fabs d0, d0
     //
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = f64::from_bits(0x3c00_0000_0000_0000) * (x as f64);
     x.abs()
   }
@@ -726,7 +726,7 @@ impl private::RandomFloat for f64 {
     //   add x2, x1, x0, asr #1
     //   scvtf d0, x2, #62
     //
-    let x = g.next() as i64;
+    let x = g.next().cast_signed();
     let x = (x & 1) + (x >> 1);
     f64::from_bits(0x3c10_0000_0000_0000) * (x as f64)
   }
@@ -744,7 +744,7 @@ impl rand_core::TryRng for Rng {
 
   #[inline(always)]
   fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-    Ok(self.next() as u32)
+    Ok(self.next() as _)
   }
 
   #[inline(always)]
@@ -817,25 +817,25 @@ pub mod thread_local {
   /// # Panics
   ///
   /// A call to `with` panics if
-  /// - initializing the thread-local state with `getrandom` fails,
-  /// - during the dynamic extent of a call to `with` a re-entrant access is
-  ///   attempted, or
+  /// - an access to the thread local state is attempted during the dynamic
+  ///   extent of the call to `with`,
+  /// - initialization of the thread-local state with `getrandom` fails, or
   /// - a previous call to `with` panicked.
   #[inline(always)]
   pub fn with<T>(f: impl FnOnce(&mut Rng) -> T) -> T {
     #[inline(never)]
     #[cold]
-    fn init(is_init: &Cell<bool>) -> Rng {
-      assert!(! is_init.get());
-      is_init.set(true);
+    fn init(is_initialized: &Cell<bool>) -> Rng {
+      assert!(! is_initialized.get());
+      is_initialized.set(true);
       Rng::from_operating_system()
     }
-    RNG.with(|&(ref state, ref is_init)| {
+    RNG.with(|&(ref state, ref is_initialized)| {
       let mut g =
         if let Some(s) = state.get() {
           Rng::from_state(s)
         } else {
-          init(is_init)
+          init(is_initialized)
         };
       state.set(None); // This write is often elided.
       let x = f(&mut g);
