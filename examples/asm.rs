@@ -187,6 +187,11 @@ pub fn fill_u64(g: &mut Rng, buf: &mut [u64]) {
 }
 
 #[inline(never)]
+pub fn fill_u128(g: &mut Rng, buf: &mut [u128]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
 pub fn shuffle(g: &mut Rng, a: &mut [u32]) {
   g.shuffle(a)
 }
@@ -227,16 +232,6 @@ pub fn fork(g: &mut Rng) -> Rng {
 #[inline(never)]
 pub fn try_fork(g: &mut Rng) -> Result<Rng, rand_core::Infallible> {
   <Rng as rand::SeedableRng>::try_fork(g)
-}
-
-#[inline(never)]
-pub fn rng16x2(g: &mut dandelion::miniature::Rng16x2) -> u16 {
-  g.next()
-}
-
-#[inline(never)]
-pub fn rng32x2(g: &mut dandelion::miniature::Rng32x2) -> u32 {
-  g.next()
 }
 
 #[inline(never)]
