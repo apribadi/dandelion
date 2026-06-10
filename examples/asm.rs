@@ -132,12 +132,12 @@ pub fn float_biunit_f64(g: &mut Rng) -> f64 {
 }
 
 #[inline(never)]
-pub fn uniform_bools(g: &mut Rng) -> [bool; 6] {
+pub fn uniform_6bool(g: &mut Rng) -> [bool; 6] {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn uniform_4u16(g: &mut Rng) -> [u16; 4] {
+pub fn uniform_6u8(g: &mut Rng) -> [u8; 6] {
   g.uniform()
 }
 

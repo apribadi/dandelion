@@ -526,6 +526,7 @@ impl private::RandomUniform for bool {
     buf
   }
 
+  #[inline]
   fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
     unsafe { g.fill_p(buf.as_mut_ptr(), buf.len()) };
   }
@@ -538,7 +539,8 @@ macro_rules! impl_uniform_for_ints {
     , $nzuint:ty
     , $uniform:ident
     , $fill_inlined:ident
-    , $fill:ident;
+    , $fill:ident
+    ;
     )*
   ) => {
     $(
@@ -633,7 +635,12 @@ impl<const N: usize, T: RandomUniform> private::RandomUniform for [T; N] {
 }
 
 macro_rules! impl_bounded_and_between_for_ints {
-  ($($sint:ty, $uint:ty, $bounded:ident;)*) => {
+  ($( $sint:ty
+    , $uint:ty
+    , $bounded:ident
+    ;
+    )*
+  ) => {
     $(
     impl RandomBounded for $uint {
     }
