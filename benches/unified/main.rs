@@ -41,9 +41,9 @@ fn bench_thread_local_u128() -> u128 {
 #[divan::bench]
 fn bench_thread_local_u64_noinline() -> u64 {
   #[inline(never)]
-  fn u64() -> u64 { dandelion::thread_local::uniform::<u64>() }
+  fn next_u64() -> u64 { dandelion::thread_local::uniform::<u64>() }
   let mut a = 0u64;
-  for _ in 0 .. N { a ^= u64(); };
+  for _ in 0 .. N { a ^= next_u64(); };
   a
 }
 
@@ -67,9 +67,9 @@ fn bench_thread_local_rand_u128() -> u128 {
 #[divan::bench]
 fn bench_thread_local_rand_u64_noinline() -> u64 {
   #[inline(never)]
-  fn u64() -> u64 { rand::random::<u64>() }
+  fn next_u64() -> u64 { rand::random::<u64>() }
   let mut a = 0u64;
-  for _ in 0 .. N { a ^= u64(); }
+  for _ in 0 .. N { a ^= next_u64(); }
   a
 }
 
@@ -87,12 +87,12 @@ fn bench_u64<T: RngForBench>(bencher: Bencher<'_, '_>) {
 #[divan::bench(types = [DoubleDandelion, Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
 fn bench_u64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
-  fn u64<T: RngForBench>(rng: &mut T) -> u64 {
+  fn next_u64<T: RngForBench>(rng: &mut T) -> u64 {
     rng.u64()
   }
   #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N]) {
-    for elt in buf.iter_mut() { *elt = u64(rng); }
+    for elt in buf.iter_mut() { *elt = next_u64(rng); }
   }
   let mut buf = [0u64; N];
   let mut rng = T::from_u64(black_box(0));
@@ -115,8 +115,12 @@ fn bench_range_u64<T: RngForBench>(bencher: Bencher<'_, '_>) {
 #[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
 fn bench_range_u64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
+  fn range_u64<T: RngForBench>(rng: &mut T, a: u64, b: u64) -> u64 {
+    rng.range_u64(a, b)
+  }
+  #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N], lo: u64, hi: u64) {
-    for elt in buf.iter_mut() { *elt = rng.range_u64_noinline(lo, hi); }
+    for elt in buf.iter_mut() { *elt = range_u64(rng, lo, hi); }
   }
   let mut buf = [0u64; N];
   let mut rng = T::from_u64(black_box(0));
@@ -150,8 +154,12 @@ fn bench_f64<T: RngForBench>(bencher: Bencher<'_, '_>) {
 #[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
 fn bench_f64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
+  fn next_f64<T: RngForBench>(rng: &mut T) -> f64 {
+    rng.f64()
+  }
+  #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [f64; N]) {
-    for elt in buf.iter_mut() { *elt = rng.f64_noinline(); }
+    for elt in buf.iter_mut() { *elt = next_f64(rng); }
   }
   let mut buf = [0_f64; N];
   let mut rng = T::from_u64(black_box(0));
@@ -159,10 +167,17 @@ fn bench_f64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
 }
 
 #[divan::bench(types = [DoubleDandelion, Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_large<T: RngForBench>(bencher: Bencher<'_, '_>) {
+fn bench_fill_b_large<T: RngForBench>(bencher: Bencher<'_, '_>) {
   let mut buf = [0u8; 8 * 1_000];
   let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { T::fill(&mut rng, &mut buf) });
+  bencher.bench_local(|| for _ in 0 .. N { T::fill_b(&mut rng, &mut buf) });
+}
+
+#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
+fn bench_fill_h_large<T: RngForBench>(bencher: Bencher<'_, '_>) {
+  let mut buf = [0u16; 4 * 1_000];
+  let mut rng = T::from_u64(black_box(0));
+  bencher.bench_local(|| for _ in 0 .. N { T::fill_h(&mut rng, &mut buf) });
 }
 
 fn make_boxed_byte_slices() -> [Box<[u8]>; N] {
@@ -175,10 +190,10 @@ fn make_boxed_byte_slices() -> [Box<[u8]>; N] {
 }
 
 #[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_small<T: RngForBench>(bencher: Bencher<'_, '_>) {
+fn bench_fill_b_small<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [Box<[u8]>; N]) {
-    for elt in buf.iter_mut() { rng.fill(elt); }
+    for elt in buf.iter_mut() { rng.fill_b(elt); }
   }
   let mut buf: [Box<[u8]>; N] = make_boxed_byte_slices();
   let mut rng = T::from_u64(black_box(0));
@@ -186,10 +201,14 @@ fn bench_fill_small<T: RngForBench>(bencher: Bencher<'_, '_>) {
 }
 
 #[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_small_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
+fn bench_fill_b_small_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
+  #[inline(never)]
+  fn fill_b<T: RngForBench>(rng: &mut T, buf: &mut [u8]) {
+    rng.fill_b(buf)
+  }
   #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [Box<[u8]>; N]) {
-    for elt in buf.iter_mut() { rng.fill_noinline(elt); }
+    for elt in buf.iter_mut() { fill_b(rng, elt); }
   }
   let mut buf: [Box<[u8]>; N] = make_boxed_byte_slices();
   let mut rng = T::from_u64(black_box(0));

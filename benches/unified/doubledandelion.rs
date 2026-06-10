@@ -80,7 +80,7 @@ impl RngForBench for DoubleDandelion {
   }
 
   #[inline(never)]
-  fn fill(&mut self, buf: &mut [u8]) {
+  fn fill_b(&mut self, buf: &mut [u8]) {
     let mut p = buf.as_mut_ptr();
     let mut n = buf.len();
     if n % 32 != 0 { unimplemented!() } // no tail handling
@@ -99,6 +99,10 @@ impl RngForBench for DoubleDandelion {
   }
 
   fn bernoulli(&mut self, _: f64) -> bool {
+    unimplemented!()
+  }
+
+  fn fill_h(&mut self, _: &mut [u16]) {
     unimplemented!()
   }
 }
