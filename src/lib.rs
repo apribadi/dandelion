@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
+#![allow(private_bounds)]
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -8,7 +9,6 @@ use core::fmt::Debug;
 use core::fmt::Formatter;
 use core::fmt;
 use core::hint::cold_path;
-use core::hint::select_unpredictable;
 use core::num::NonZeroI128;
 use core::num::NonZeroI16;
 use core::num::NonZeroI32;
@@ -37,7 +37,6 @@ pub struct Rng { state: NonZeroU128 }
 /// values of the type.
 ///
 /// See [`Rng::uniform`] and [`Rng::fill`].
-#[allow(private_bounds)]
 pub trait RandomUniform: private::RandomUniform {
 }
 
@@ -45,7 +44,6 @@ pub trait RandomUniform: private::RandomUniform {
 /// an inclusive range from zero to an upper bound.
 ///
 /// See [`Rng::bounded`].
-#[allow(private_bounds)]
 pub trait RandomBounded: private::RandomBounded {
 }
 
@@ -54,7 +52,6 @@ pub trait RandomBounded: private::RandomBounded {
 /// to wrap around from the maximum to the minimum value of the type.
 ///
 /// See [`Rng::between`].
-#[allow(private_bounds)]
 pub trait RandomBetween: private::RandomBetween {
 }
 
@@ -62,7 +59,6 @@ pub trait RandomBetween: private::RandomBetween {
 /// distributions.
 ///
 /// See [`Rng::float`] and [`Rng::float_biunit`].
-#[allow(private_bounds)]
 pub trait RandomFloat: private::RandomFloat {
 }
 
@@ -487,7 +483,7 @@ impl Rng {
     let u = widening_mul(x, m);
     let mut a = upper(u);
     let mut b = lower(u);
-    let v = select_unpredictable(m == 0, x, a);
+    let v = if m == 0 { x } else { a };
     if b.overflowing_add(n).1 {
       loop {
         let x = g.next();
