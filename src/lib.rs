@@ -90,7 +90,6 @@ const fn upper(x: u128) -> u64 {
 const HASH_MULT: u128 = 0x93c4_67e3_7db0_c7a4_d1be_3f81_0152_cb57;
 
 const fn hash(x: u128) -> u128 {
-  let x = x.get();
   let x = x.wrapping_mul(HASH_MULT);
   let x = x.swap_bytes();
   let x = x.wrapping_mul(HASH_MULT);
@@ -101,7 +100,7 @@ const fn hash(x: u128) -> u128 {
 
 impl Rng {
   #[inline(always)]
-  fn from_state_unchecked(state: u128) -> Self {
+  const fn from_state_unchecked(state: u128) -> Self {
     // SAFETY: Must not be public.
     debug_assert!(state != 0);
     Self(lower(state), upper(state))
