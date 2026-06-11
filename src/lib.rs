@@ -88,24 +88,28 @@ const fn upper(x: u128) -> u64 {
 // number in the range (0.5, 1.0).
 const HASH_MULT: u128 = 0x93c4_67e3_7db0_c7a4_d1be_3f81_0152_cb57;
 
+const fn hash(x: NonZeroU128) -> NonZeroU128 {
+  let x = x.get();
+  let x = x.wrapping_mul(HASH_MULT);
+  let x = x.swap_bytes();
+  let x = x.wrapping_mul(HASH_MULT);
+  let x = x.swap_bytes();
+  let x = x.wrapping_mul(HASH_MULT);
+  unsafe { NonZeroU128::new_unchecked(x) }
+}
+
 impl Rng {
   /// Creates a random number generator with an initial state derived by
   /// hashing the given seed.
   pub const fn new(seed: NonZeroU128) -> Self {
-    let x = seed.get();
-    let x = x.wrapping_mul(HASH_MULT);
-    let x = x.swap_bytes();
-    let x = x.wrapping_mul(HASH_MULT);
-    let x = x.swap_bytes();
-    let x = x.wrapping_mul(HASH_MULT);
-    Self { state: unsafe { NonZeroU128::new_unchecked(x) } }
+    Self::from_state(hash(seed))
   }
 
   /// Creates a random number generator with an initial state derived by
   /// hashing the given `u64` seed.
   pub const fn from_u64(seed: u64) -> Self {
     let s = catenate(seed, 1);
-    Self::new(unsafe { NonZeroU128::new_unchecked(s) })
+    Self::from_state(hash(unsafe { NonZeroU128::new_unchecked(s) }))
   }
 
   /// Retrieves the current state of the random number generator.
@@ -141,7 +145,7 @@ impl Rng {
     let mut buf = [0; 16];
     getrandom::fill(&mut buf).expect("getrandom::fill failed!");
     let s = 1 | u128::from_le_bytes(buf);
-    Self { state: unsafe { NonZeroU128::new_unchecked(s) } }
+    Self::from_state(unsafe { NonZeroU128::new_unchecked(s) })
   }
 
   /// Generates the next random number. This is the core operation of the

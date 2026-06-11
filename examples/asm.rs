@@ -12,6 +12,11 @@ pub fn new(s: NonZeroU128) -> Rng {
 }
 
 #[inline(never)]
+pub fn next(g: &mut Rng) -> u64 {
+  g.next()
+}
+
+#[inline(never)]
 pub fn bernoulli(g: &mut Rng, p: f64) -> bool {
   g.bernoulli(p)
 }
@@ -23,11 +28,6 @@ pub fn bool(g: &mut Rng) -> bool {
 
 #[inline(never)]
 pub fn u32(g: &mut Rng) -> u32 {
-  g.uniform()
-}
-
-#[inline(never)]
-pub fn u64(g: &mut Rng) -> u64 {
   g.uniform()
 }
 
@@ -52,6 +52,11 @@ pub fn bounded_u32(g: &mut Rng, n: u32) -> u32 {
 }
 
 #[inline(never)]
+pub fn bounded_u32_max(g: &mut Rng) -> u32 {
+  g.bounded(u32::MAX)
+}
+
+#[inline(never)]
 pub fn bounded_u64(g: &mut Rng, n: u64) -> u64 {
   g.bounded(n)
 }
@@ -64,6 +69,11 @@ pub fn bounded_u64_0(g: &mut Rng) -> u64 {
 #[inline(never)]
 pub fn bounded_u64_255(g: &mut Rng) -> u64 {
   g.bounded(255)
+}
+
+#[inline(never)]
+pub fn bounded_u64_max(g: &mut Rng) -> u64 {
+  g.bounded(u64::MAX)
 }
 
 #[inline(never)]
@@ -249,6 +259,11 @@ pub fn xoroshiro_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> u64 {
 }
 
 #[inline(never)]
+pub fn xoroshiro_f64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> f64 {
+  g.random()
+}
+
+#[inline(never)]
 pub fn xoroshiro_non_zero_u32(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> NonZeroU32 {
   g.random()
 }
@@ -280,4 +295,58 @@ pub fn xoroshiro_bounded_u64_255(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> 
 #[inline(never)]
 pub fn xoroshiro_bernoulli(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, p: f64) -> bool {
   g.random_bool(p)
+}
+
+pub struct Rng1n64(NonZeroU64);
+
+#[inline(never)]
+pub fn rng1n64_next(g: &mut Rng1n64) -> u32 {
+  let s = g.0.get();
+  let x = s as u32;
+  let y = (s >> 32) as u32;
+  let u = y ^ x << 10;
+  let v = x ^ (y.cast_signed() >> 7).cast_unsigned();
+  let s = u as u64 ^ (v as u64) << 32;
+  g.0 = unsafe { NonZeroU64::new_unchecked(s) };
+  let z = x as u64 * y as u64;
+  y.wrapping_add(z as u32) ^ (z >> 32) as u32
+}
+
+pub struct Rng2u32(u32, u32);
+
+#[inline(never)]
+pub fn rng2u32_next(g: &mut Rng2u32) -> u32 {
+  let x = g.0;
+  let y = g.1;
+  g.0 = y ^ x << 10;
+  g.1 = x ^ (y.cast_signed() >> 7).cast_unsigned();
+  let z = x as u64 * y as u64;
+  y.wrapping_add(z as u32) ^ (z >> 32) as u32
+}
+
+pub struct Rng1n32(NonZeroU32);
+
+#[inline(never)]
+pub fn rng1n32_next(g: &mut Rng1n32) -> u16 {
+  let s = g.0.get();
+  let x = s as u16;
+  let y = (s >> 16) as u16;
+  let u = y ^ x << 5;
+  let v = x ^ (y.cast_signed() >> 3).cast_unsigned();
+  let s = u as u32 ^ (v as u32) << 16;
+  g.0 = unsafe { NonZeroU32::new_unchecked(s) };
+  let z = x as u32 * y as u32;
+  y.wrapping_add(z as u16) ^ (z >> 16) as u16
+}
+
+pub struct Rng2u16(u16, u16);
+
+#[inline(never)]
+pub fn rng2u16_next(g: &mut Rng2u16) -> u16 {
+  let x = g.0;
+  let y = g.1;
+  g.0 = y ^ x << 5;
+  g.1 = x ^ (y.cast_signed() >> 3).cast_unsigned();
+  let z = x as u32 * y as u32;
+  y.wrapping_add(z as u16) ^ (z >> 16) as u16
 }

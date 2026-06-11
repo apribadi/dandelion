@@ -226,3 +226,19 @@ fn bench_bernoulli<T: RngForBench>(bencher: Bencher<'_, '_>) {
   let p = black_box(0.75);
   bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf, p) });
 }
+
+#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
+fn bench_bernoulli_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
+  #[inline(never)]
+  fn next_bernoulli<T: RngForBench>(rng: &mut T, p: f64) -> bool {
+    rng.bernoulli(p)
+  }
+  #[inline(never)]
+  fn go<U: RngForBench>(rng: &mut U, buf: &mut [bool; N], p: f64) {
+    for elt in buf.iter_mut() { *elt = next_bernoulli(rng, p); }
+  }
+  let mut buf = [false; N];
+  let mut rng = T::from_u64(black_box(0));
+  let p = black_box(0.75);
+  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf, p) });
+}
