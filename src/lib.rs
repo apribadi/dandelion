@@ -24,7 +24,8 @@ use core::num::NonZeroUsize;
 
 /// A high performance non-cryptographic random number generator.
 #[derive(Clone, Eq, PartialEq)]
-pub struct Rng { state: NonZeroU128 }
+#[repr(C)]
+pub struct Rng(u64, u64);
 
 // NOTE: For the following traits, we do not do a blanket impl like
 //
@@ -63,7 +64,7 @@ pub trait RandomFloat: private::RandomFloat {
 }
 
 #[inline(always)]
-const fn catenate(x: u64, y: u64) -> u128 {
+const fn widening_cat(x: u64, y: u64) -> u128 {
   x as u128 ^ (y as u128) << 64
 }
 
@@ -88,34 +89,43 @@ const fn upper(x: u128) -> u64 {
 // number in the range (0.5, 1.0).
 const HASH_MULT: u128 = 0x93c4_67e3_7db0_c7a4_d1be_3f81_0152_cb57;
 
-const fn hash(x: NonZeroU128) -> NonZeroU128 {
+const fn hash(x: u128) -> u128 {
   let x = x.get();
   let x = x.wrapping_mul(HASH_MULT);
   let x = x.swap_bytes();
   let x = x.wrapping_mul(HASH_MULT);
   let x = x.swap_bytes();
   let x = x.wrapping_mul(HASH_MULT);
-  unsafe { NonZeroU128::new_unchecked(x) }
+  x
 }
 
 impl Rng {
+  #[inline(always)]
+  fn from_state_unchecked(state: u128) -> Self {
+    // SAFETY: Must not be public.
+    debug_assert!(state != 0);
+    Self(lower(state), upper(state))
+  }
+
   /// Creates a random number generator with an initial state derived by
   /// hashing the given seed.
   pub const fn new(seed: NonZeroU128) -> Self {
-    Self::from_state(hash(seed))
+    Self::from_state_unchecked(hash(seed.get()))
   }
 
   /// Creates a random number generator with an initial state derived by
   /// hashing the given `u64` seed.
   pub const fn from_u64(seed: u64) -> Self {
-    let s = catenate(seed, 1);
-    Self::from_state(hash(unsafe { NonZeroU128::new_unchecked(s) }))
+    Self::from_state_unchecked(hash(widening_cat(seed, 1)))
   }
 
   /// Retrieves the current state of the random number generator.
   #[inline(always)]
   pub const fn state(&self) -> NonZeroU128 {
-    self.state
+    // SAFETY: We do not publicly expose any way to construct a generator with
+    // a zero state.
+    let s = widening_cat(self.0, self.1);
+    unsafe { NonZeroU128::new_unchecked(s) }
   }
 
   /// Creates a random number generator with a particular initial state.
@@ -129,7 +139,7 @@ impl Rng {
   /// </div>
   #[inline(always)]
   pub const fn from_state(state: NonZeroU128) -> Self {
-    Self { state }
+    Self::from_state_unchecked(state.get())
   }
 
   /// Creates a random number generator with a random seed retrieved from the
@@ -144,21 +154,17 @@ impl Rng {
   pub fn from_operating_system() -> Self {
     let mut buf = [0; 16];
     getrandom::fill(&mut buf).expect("getrandom::fill failed!");
-    let s = 1 | u128::from_le_bytes(buf);
-    Self::from_state(unsafe { NonZeroU128::new_unchecked(s) })
+    Self::from_state_unchecked(1 | u128::from_le_bytes(buf))
   }
 
   /// Generates the next random number. This is the core operation of the
   /// random number generator from which other sampling routines are derived.
   #[inline(always)]
   pub const fn next(&mut self) -> u64 {
-    let s = self.state.get();
-    let x = lower(s);
-    let y = upper(s);
-    let u = y ^ (x << 7);
-    let v = x ^ (y.cast_signed() >> 4).cast_unsigned();
-    let s = catenate(u, v);
-    self.state = unsafe { NonZeroU128::new_unchecked(s) };
+    let x = self.0;
+    let y = self.1;
+    self.0 = y ^ (x << 7);
+    self.1 = x ^ (y.cast_signed() >> 4).cast_unsigned();
     let z = widening_mul(x, x);
     y.wrapping_add(lower(z)) ^ upper(z)
   }
@@ -292,7 +298,7 @@ impl Rng {
 
   #[inline(always)]
   const fn uniform_u128(&mut self) -> u128 {
-    catenate(self.next(), self.next())
+    widening_cat(self.next(), self.next())
   }
 
   #[inline(always)]
@@ -765,8 +771,7 @@ impl rand_core::SeedableRng for Rng {
 
   #[inline(always)]
   fn from_seed(seed: Self::Seed) -> Self {
-    let s = 1 | u128::from_le_bytes(seed);
-    Self::from_state(unsafe { NonZeroU128::new_unchecked(s) })
+    Self::from_state_unchecked(1 | u128::from_le_bytes(seed))
   }
 
   #[inline]
@@ -783,8 +788,7 @@ impl rand_core::SeedableRng for Rng {
   fn try_from_rng<T: rand_core::TryRng + ?Sized>(g: &mut T) -> Result<Self, T::Error> {
     let x = g.try_next_u64()?;
     let y = g.try_next_u64()?;
-    let s = 1 | catenate(x, y);
-    Ok(Self::from_state(unsafe { NonZeroU128::new_unchecked(s) }))
+    Ok(Self::from_state_unchecked(1 | widening_cat(x, y)))
   }
 
   // We keep the default implementations of `fork` and `try_fork`.
