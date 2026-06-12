@@ -1,5 +1,7 @@
-Dandelion is a high performance non-cryptographic pseudo random number
-generator. Its state consists of 128 bits and its cycle length is 2¹²⁸ - 1.
+# Synopsis
+
+Dandelion is a high performance non-cryptographic random number generator. Its
+state consists of 128 bits and its cycle length is 2¹²⁸ - 1.
 
 It is suited to producing random numbers for algorithms applied to simulation,
 testing, statistics, data structures, etc.
@@ -8,8 +10,6 @@ Particular attention has been paid to keeping the footprint of the generator
 small (e.g. small state, small code size, no large constants) so that it can be
 used to generate a few random numbers at a time without negatively impacting
 the performance of surrounding code.
-
-# Example
 
 ```
 let mut g = dandelion::Rng::new(std::num::NonZeroU128::MIN);
@@ -25,7 +25,7 @@ std::assert_matches!(d, true);
 std::assert_matches!(e, [-11392, 19564, 12621]);
 ```
 
-# API Design
+# Using the Library
 
 TODO: sealed traits for organization
 

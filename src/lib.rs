@@ -835,10 +835,9 @@ pub mod thread_local {
     }
     RNG.with(|&(ref state, ref is_initialized)| {
       let mut g =
-        if let Some(s) = state.get() {
-          Rng::from_state(s)
-        } else {
-          init(is_initialized)
+        match state.get() {
+          None => init(is_initialized),
+          Some(s) => Rng::from_state(s),
         };
       state.set(None); // This write is often elided.
       let x = f(&mut g);
