@@ -12,6 +12,11 @@ pub fn new(s: NonZeroU128) -> Rng {
 }
 
 #[inline(never)]
+pub fn from_u64(n: u64) -> Rng {
+  Rng::from_u64(n)
+}
+
+#[inline(never)]
 pub fn next(g: &mut Rng) -> u64 {
   g.next()
 }
@@ -229,6 +234,12 @@ pub fn thread_local_u64_loop() -> u64 {
     x ^= dandelion::thread_local::uniform::<u64>();
   }
   x
+}
+
+#[cfg(feature = "rand_core")]
+#[inline(never)]
+pub fn from_seed(seed: <Rng as rand_core::SeedableRng>::Seed) -> Rng {
+  <Rng as rand::SeedableRng>::from_seed(seed)
 }
 
 #[cfg(feature = "rand_core")]

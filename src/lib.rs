@@ -89,33 +89,32 @@ const fn upper(x: u128) -> u64 {
 // number in the range (0.5, 1.0).
 const HASH_MULT: u128 = 0x93c4_67e3_7db0_c7a4_d1be_3f81_0152_cb57;
 
-const fn hash(x: u128) -> u128 {
+const fn hash(x: NonZeroU128) -> NonZeroU128 {
+  // SAFETY: HASH_MULT must be odd
+  let x = x.get();
   let x = x.wrapping_mul(HASH_MULT);
   let x = x.swap_bytes();
   let x = x.wrapping_mul(HASH_MULT);
   let x = x.swap_bytes();
   let x = x.wrapping_mul(HASH_MULT);
-  x
+  unsafe { NonZeroU128::new_unchecked(x) }
+}
+
+const fn odd(x: u128) -> NonZeroU128 {
+  unsafe { NonZeroU128::new_unchecked(1 | x) }
 }
 
 impl Rng {
-  #[inline(always)]
-  const fn from_state_unchecked(state: u128) -> Self {
-    // SAFETY: Must not be public.
-    debug_assert!(state != 0);
-    Self(lower(state), upper(state))
-  }
-
   /// Creates a random number generator with an initial state derived by
   /// hashing the given seed.
   pub const fn new(seed: NonZeroU128) -> Self {
-    Self::from_state_unchecked(hash(seed.get()))
+    Self::from_state(hash(seed))
   }
 
   /// Creates a random number generator with an initial state derived by
   /// hashing the given `u64` seed.
   pub const fn from_u64(seed: u64) -> Self {
-    Self::from_state_unchecked(hash(widening_cat(seed, 1)))
+    Self::from_state(hash(odd(widening_cat(0, seed))))
   }
 
   /// Retrieves the current state of the random number generator.
@@ -138,7 +137,8 @@ impl Rng {
   /// </div>
   #[inline(always)]
   pub const fn from_state(state: NonZeroU128) -> Self {
-    Self::from_state_unchecked(state.get())
+    let state = state.get();
+    Self(lower(state), upper(state))
   }
 
   /// Creates a random number generator with a random seed retrieved from the
@@ -153,7 +153,7 @@ impl Rng {
   pub fn from_operating_system() -> Self {
     let mut buf = [0; 16];
     getrandom::fill(&mut buf).expect("getrandom::fill failed!");
-    Self::from_state_unchecked(1 | u128::from_le_bytes(buf))
+    Self::from_state(odd(u128::from_le_bytes(buf)))
   }
 
   /// Generates the next random number. This is the core operation of the
@@ -316,7 +316,7 @@ impl Rng {
 
   #[inline(always)]
   unsafe fn fill_b_inlined(&mut self, buf: *mut u8, len: usize) {
-    // the byte version is unrolled more than the others
+    // the byte fill is unrolled more than the others
     const N: usize = 8;
     let mut p = buf;
     let mut i = len;
@@ -770,7 +770,7 @@ impl rand_core::SeedableRng for Rng {
 
   #[inline(always)]
   fn from_seed(seed: Self::Seed) -> Self {
-    Self::from_state_unchecked(1 | u128::from_le_bytes(seed))
+    Self::from_state(odd(u128::from_le_bytes(seed)))
   }
 
   #[inline]
@@ -787,7 +787,7 @@ impl rand_core::SeedableRng for Rng {
   fn try_from_rng<T: rand_core::TryRng + ?Sized>(g: &mut T) -> Result<Self, T::Error> {
     let x = g.try_next_u64()?;
     let y = g.try_next_u64()?;
-    Ok(Self::from_state_unchecked(1 | widening_cat(x, y)))
+    Ok(Self::from_state(odd(widening_cat(x, y))))
   }
 
   // We keep the default implementations of `fork` and `try_fork`.

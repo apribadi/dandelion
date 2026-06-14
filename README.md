@@ -27,7 +27,14 @@ std::assert_matches!(e, [-11392, 19564, 12621]);
 
 # Using the Library
 
-TODO: sealed traits for organization
+You can initialize a `Rng` from a deterministic seed with `Rng::new` or
+`Rng::from_u64`, or you can initialize it from a platform provided source of
+randomness with `Rng::from_operating_system`. You can also access a
+thread-local `Rng` instance with the `dandelion::thread_local` module.
+
+Much of the API for generating random numbers is organized by sealed traits
+provided by this library. For example, the `Rng::uniform` method generates a
+value of some type that satisfies the `RandomUniform` trait.
 
 # A Peek at the Assembly
 
