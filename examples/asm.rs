@@ -3,6 +3,7 @@
 use dandelion::Rng;
 use rand::RngExt as _;
 use std::num::NonZeroU128;
+use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroU64;
 
@@ -167,12 +168,27 @@ pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
 }
 
 #[inline(never)]
+pub fn uniform_6nzu16(g: &mut Rng) -> [NonZeroU16; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
 pub fn uniform_6i32(g: &mut Rng) -> [i32; 6] {
   g.uniform()
 }
 
 #[inline(never)]
 pub fn uniform_6u32(g: &mut Rng) -> [u32; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_2x3u16(g: &mut Rng) -> [[u16; 3]; 2] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_3x2x3u16(g: &mut Rng) -> [[[u16; 3]; 2]; 3] {
   g.uniform()
 }
 
@@ -203,6 +219,27 @@ pub fn fill_u64(g: &mut Rng, buf: &mut [u64]) {
 
 #[inline(never)]
 pub fn fill_u128(g: &mut Rng, buf: &mut [u128]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_6u16(g: &mut Rng, buf: &mut [[u16; 6]]) {
+  g.fill(buf)
+}
+
+pub fn fill_3x2x3u16(g: &mut Rng, buf: &mut [[[[u16; 3]; 2]; 3]]) {
+  g.fill(buf)
+}
+
+pub fn fill_nzu16(g: &mut Rng, buf: &mut [NonZeroU16]) {
+  g.fill(buf)
+}
+
+pub fn fill_2nzu16(g: &mut Rng, buf: &mut [[NonZeroU16; 2]]) {
+  g.fill(buf)
+}
+
+pub fn fill_2nzu128(g: &mut Rng, buf: &mut [[NonZeroU128; 2]]) {
   g.fill(buf)
 }
 
