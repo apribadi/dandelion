@@ -238,3 +238,11 @@ fn test_vectors() {
       +0.0822904760668782
   "#]].assert_eq(out.drain(..).as_str());
 }
+
+#[test]
+fn test_fill() {
+  // let mut out = String::new();
+  let mut rng = Rng::new(NonZeroU128::MIN);
+  let mut buf = [0u16; 100];
+  rng.fill(&mut buf);
+}

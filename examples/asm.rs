@@ -238,8 +238,14 @@ pub fn thread_local_u64_loop() -> u64 {
 
 #[cfg(feature = "rand_core")]
 #[inline(never)]
-pub fn from_seed(seed: <Rng as rand_core::SeedableRng>::Seed) -> Rng {
+pub fn from_seed(seed: [u8; 16]) -> Rng {
   <Rng as rand::SeedableRng>::from_seed(seed)
+}
+
+#[cfg(feature = "rand_core")]
+#[inline(never)]
+pub fn seed_from_u64(seed: u64) -> Rng {
+  <Rng as rand::SeedableRng>::seed_from_u64(seed)
 }
 
 #[cfg(feature = "rand_core")]

@@ -9,6 +9,7 @@ use core::fmt::Debug;
 use core::fmt::Formatter;
 use core::fmt;
 use core::hint::cold_path;
+use core::mem::transmute;
 use core::num::NonZeroI128;
 use core::num::NonZeroI16;
 use core::num::NonZeroI32;
@@ -149,7 +150,6 @@ impl Rng {
   /// Panics if `getrandom` fails to retrieve random bytes from the operating
   /// system.
   #[cfg(feature = "getrandom")]
-  #[inline(never)]
   pub fn from_operating_system() -> Self {
     let mut buf = [0; 16];
     getrandom::fill(&mut buf).expect("getrandom::fill failed!");
@@ -265,61 +265,61 @@ impl Rng {
     let p = buf.as_mut_ptr();
     let n = buf.len();
     for i in 1 .. n {
-      let j = self.bounded(i);
+      let j = self.bounded_usize(i);
       unsafe { p.add(i).swap(p.add(j)) };
     }
   }
 
   #[inline(always)]
-  const fn uniform_usize(&mut self) -> usize {
+  fn uniform_usize(&mut self) -> usize {
     cfg_select! {
-      target_pointer_width = "16" => { self.uniform_u16() as _ }
-      target_pointer_width = "32" => { self.uniform_u32() as _ }
-      target_pointer_width = "64" => { self.next() as _ }
-      _ => { unimplemented!() }
+      target_pointer_width = "16" => self.uniform_u16() as _,
+      target_pointer_width = "32" => self.uniform_u32() as _,
+      target_pointer_width = "64" => self.next() as _,
+      _ => unimplemented!(),
     }
   }
 
   #[inline(always)]
-  const fn uniform_u8(&mut self) -> u8 {
+  fn uniform_u8(&mut self) -> u8 {
     self.next() as _
   }
 
   #[inline(always)]
-  const fn uniform_u16(&mut self) -> u16 {
+  fn uniform_u16(&mut self) -> u16 {
     self.next() as _
   }
 
   #[inline(always)]
-  const fn uniform_u32(&mut self) -> u32 {
+  fn uniform_u32(&mut self) -> u32 {
     self.next() as _
   }
 
   #[inline(always)]
-  const fn uniform_u128(&mut self) -> u128 {
+  fn uniform_u128(&mut self) -> u128 {
     widening_cat(self.next(), self.next())
   }
 
   #[inline(always)]
-  unsafe fn fill_z_inlined(&mut self, buf: *mut usize, len: usize) {
+  fn fill_z_inlined(&mut self, buf: &mut [usize]) {
     cfg_select! {
-      target_pointer_width = "16" => unsafe { self.fill_h_inlined(buf as _, len) }
-      target_pointer_width = "32" => unsafe { self.fill_w_inlined(buf as _, len) }
-      target_pointer_width = "64" => unsafe { self.fill_d_inlined(buf as _, len) }
-      _ => { unimplemented!() }
+      target_pointer_width = "16" => self.fill_h_inlined(unsafe { transmute(buf) }),
+      target_pointer_width = "32" => self.fill_w_inlined(unsafe { transmute(buf) }),
+      target_pointer_width = "64" => self.fill_d_inlined(unsafe { transmute(buf) }),
+      _ => unimplemented!(),
     }
   }
 
-  unsafe fn fill_z(&mut self, buf: *mut usize, len: usize) {
-    unsafe { self.fill_z_inlined(buf, len) };
+  fn fill_z(&mut self, buf: &mut [usize]) {
+    self.fill_z_inlined(buf);
   }
 
   #[inline(always)]
-  unsafe fn fill_b_inlined(&mut self, buf: *mut u8, len: usize) {
+  fn fill_b_inlined(&mut self, buf: &mut [u8]) {
     // the byte fill is unrolled more than the others
     const N: usize = 8;
-    let mut p = buf;
-    let mut i = len;
+    let mut p = buf.as_mut_ptr();
+    let mut i = buf.len();
     if i == 0 { return }
     while i > 2 * N {
       let x = self.next().to_le_bytes();
@@ -351,19 +351,19 @@ impl Rng {
     }
   }
 
-  unsafe fn fill_b(&mut self, buf: *mut u8, len: usize) {
-    unsafe { self.fill_b_inlined(buf, len) }
+  fn fill_b(&mut self, buf: &mut [u8]) {
+    self.fill_b_inlined(buf);
   }
 
   #[inline(always)]
-  unsafe fn fill__<const N: usize, T, F>(&mut self, buf: *mut T, len: usize, f: F)
+  fn fill__<const N: usize, T, F>(&mut self, buf: &mut [T], f: F)
   where
     T: Copy,
     F: Fn(u64) -> [T; N]
   {
     const { assert!(N <= 8) };
-    let mut p = buf;
-    let mut i = len;
+    let mut p = buf.as_mut_ptr();
+    let mut i = buf.len();
     if i == 0 { return }
     while i > N {
       let x = f(self.next());
@@ -386,66 +386,64 @@ impl Rng {
   }
 
   #[inline(always)]
-  unsafe fn fill_h_inlined(&mut self, buf: *mut u16, len: usize) {
+  fn fill_h_inlined(&mut self, buf: &mut [u16]) {
     let f = |x: u64| [x as u16, (x >> 16) as u16, (x >> 32) as u16, (x >> 48) as u16];
-    unsafe { self.fill__(buf, len, f) }
+    self.fill__(buf, f);
   }
 
-  unsafe fn fill_h(&mut self, buf: *mut u16, len: usize) {
-    unsafe { self.fill_h_inlined(buf, len) };
+  fn fill_h(&mut self, buf: &mut [u16]) {
+    self.fill_h_inlined(buf);
   }
 
   #[inline(always)]
-  unsafe fn fill_w_inlined(&mut self, buf: *mut u32, len: usize) {
+  fn fill_w_inlined(&mut self, buf: &mut [u32]) {
     let f = |x: u64| [x as u32, (x >> 32) as u32];
-    unsafe { self.fill__(buf, len, f) };
+    self.fill__(buf, f);
   }
 
-  unsafe fn fill_w(&mut self, buf: *mut u32, len: usize) {
-    unsafe { self.fill_w_inlined(buf, len) };
+  fn fill_w(&mut self, buf: &mut [u32]) {
+    self.fill_w_inlined(buf);
   }
 
   #[inline(always)]
-  unsafe fn fill_d_inlined(&mut self, buf: *mut u64, len: usize) {
-    for i in 0 .. len {
-      let x = self.next();
-      unsafe { buf.add(i).write(x) };
+  fn fill_d_inlined(&mut self, buf: &mut [u64]) {
+    for p in buf.iter_mut() {
+      *p = self.next();
     }
   }
 
-  unsafe fn fill_d(&mut self, buf: *mut u64, len: usize) {
-    unsafe { self.fill_d_inlined(buf, len) };
+  fn fill_d(&mut self, buf: &mut [u64]) {
+    self.fill_d_inlined(buf);
   }
 
   #[inline(always)]
-  unsafe fn fill_q_inlined(&mut self, buf: *mut u128, len: usize) {
-    for i in 0 .. len {
-      let x = self.uniform_u128();
-      unsafe { buf.add(i).write(x) };
+  fn fill_q_inlined(&mut self, buf: &mut [u128]) {
+    for p in buf.iter_mut() {
+      *p = self.uniform_u128();
     }
   }
 
-  unsafe fn fill_q(&mut self, buf: *mut u128, len: usize) {
-    unsafe { self.fill_q_inlined(buf, len) };
+  fn fill_q(&mut self, buf: &mut [u128]) {
+    self.fill_q_inlined(buf);
   }
 
   #[inline(always)]
-  unsafe fn fill_p_inlined(&mut self, buf: *mut bool, len: usize) {
+  fn fill_p_inlined(&mut self, buf: &mut [bool]) {
     let f = |x: u64| (x & 0x01010101_01010101).to_le_bytes().map(|b| b != 0);
-    unsafe { self.fill__(buf, len, f) }
+    self.fill__(buf, f);
   }
 
-  unsafe fn fill_p(&mut self, buf: *mut bool, len: usize) {
-    unsafe { self.fill_p_inlined(buf, len) };
+  fn fill_p(&mut self, buf: &mut [bool]) {
+    self.fill_p_inlined(buf);
   }
 
   #[inline(always)]
   fn bounded_usize(&mut self, n: usize) -> usize {
     cfg_select! {
-      target_pointer_width = "16" => { self.bounded_u16(n as _) as _ }
-      target_pointer_width = "32" => { self.bounded_u32(n as _) as _ }
-      target_pointer_width = "64" => { self.bounded_u64(n as _) as _ }
-      _ => { unimplemented!() }
+      target_pointer_width = "16" => self.bounded_u16(n as _) as _,
+      target_pointer_width = "32" => self.bounded_u32(n as _) as _,
+      target_pointer_width = "64" => self.bounded_u64(n as _) as _,
+      _ => unimplemented!(),
     }
   }
 
@@ -539,13 +537,13 @@ macro_rules! impl_uniform_for_ints {
       #[inline(always)]
       fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
         let mut buf = [0; N];
-        unsafe { g.$fill_inlined(buf.as_mut_ptr() as _, buf.len()) };
+        g.$fill_inlined(unsafe { transmute(buf.as_mut_slice()) });
         buf
       }
 
       #[inline]
       fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
-        unsafe { g.$fill(buf.as_mut_ptr() as _, buf.len()) };
+        g.$fill(unsafe { transmute(buf) });
       }
     }
 
@@ -561,13 +559,13 @@ macro_rules! impl_uniform_for_ints {
       #[inline(always)]
       fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
         let mut buf = [0; N];
-        unsafe { g.$fill_inlined(buf.as_mut_ptr(), buf.len()) };
+        g.$fill_inlined(buf.as_mut_slice());
         buf
       }
 
       #[inline]
       fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
-        unsafe { g.$fill(buf.as_mut_ptr(), buf.len()) };
+        g.$fill(buf);
       }
     }
 
@@ -619,13 +617,13 @@ impl private::RandomUniform for bool {
   #[inline(always)]
   fn random_uniform_array<const N: usize>(g: &mut Rng) -> [Self; N] {
     let mut buf = [false; N];
-    unsafe { g.fill_p_inlined(buf.as_mut_ptr(), buf.len()) };
+    g.fill_p_inlined(buf.as_mut_slice());
     buf
   }
 
   #[inline]
   fn random_uniform_fill(g: &mut Rng, buf: &mut [Self]) {
-    unsafe { g.fill_p(buf.as_mut_ptr(), buf.len()) };
+    g.fill_p(buf);
   }
 }
 
