@@ -1,15 +1,23 @@
 # Synopsis
 
 Dandelion is a high performance non-cryptographic random number generator. Its
-state consists of 128 bits and its cycle length is 2¹²⁸ - 1.
-
-It is suited to producing random numbers for algorithms applied to simulation,
-testing, statistics, data structures, etc.
+state consists of 128 bits and its cycle length is 2¹²⁸ - 1. It is suited to
+producing random numbers for algorithms applied to simulation, testing,
+statistics, data structures, etc.
 
 Particular attention has been paid to keeping the footprint of the generator
-small (e.g. small state, small code size, no large constants) so that it can be
+small (e.g. small code size, small state, no large constants) so that it can be
 used to generate a few random numbers at a time without negatively impacting
 the performance of surrounding code.
+
+You can initialize a `Rng` from a deterministic seed with `Rng::new` or
+`Rng::from_u64`, or you can initialize a `Rng` from a platform provided source
+of randomness with `Rng::from_operating_system`. You can also access a
+thread-local `Rng` instance with the `dandelion::thread_local` module.
+
+Much of the API for generating random numbers is organized around a few sealed
+traits. For example, the `Rng::uniform` method can be used to generate a value
+of any type that satisfies the `RandomUniform` trait.
 
 ```
 let mut g = dandelion::Rng::new(std::num::NonZeroU128::MIN);
@@ -25,17 +33,6 @@ std::assert_matches!(d, true);
 std::assert_matches!(e, [-11392, 19564, 12621]);
 ```
 
-# Using the Library
-
-You can initialize a `Rng` from a deterministic seed with `Rng::new` or
-`Rng::from_u64`, or you can initialize it from a platform provided source of
-randomness with `Rng::from_operating_system`. You can also access a
-thread-local `Rng` instance with the `dandelion::thread_local` module.
-
-Much of the API for generating random numbers is organized by sealed traits
-provided by this library. For example, the `Rng::uniform` method generates a
-value of some type that satisfies the `RandomUniform` trait.
-
 # A Peek at the Assembly
 
 The `aarch64` assembly for generating one `u64` looks like:
@@ -46,53 +43,45 @@ next:
     eor x10, x9, x8, lsl #7
     eor x11, x8, x9, asr #4
     stp x10, x11, [x0]
-    umulh x10, x8, x8
-    madd x8, x8, x8, x9
-    eor x0, x8, x10
+    madd x9, x8, x8, x9
+    umulh x8, x8, x8
+    eor x0, x9, x8
     ret
 ```
 
-# Algorithm
+# Core Algorithm
 
-The core of the generator has two parts: a state transition function `T: (u64,
-u64) -> (u64, u64)` and an output function `F: (u64, u64) -> u64`. Then the
-`k`th output is
-
-```text
-F(T(T( ... T(x₀, y₀) ... )))
-  \________/
-   k times
-```
-
-where `(x₀, y₀)` is the initial state.
+The core of the random number generator has two parts: a state transition
+function `T: (u64, u64) -> (u64, u64)` and an output function `F: (u64, u64) ->
+u64`.
 
 The state transition function `T` is defined
 
 ```text
-T(x, y) = (y ^ asr(x, 4), x ^ lsl(y, 7))
+T(x, y) = (y ^ lsl(x, 7), x ^ asr(y, 4))
 ```
 
 and the output function `F` is defined
 
 ```text
-F(x, y) = (y + x * x) ^ mulhi(x, x)
+F(x, y) = (x * x + y) ^ umulh(x, x)
 ```
 
-where `asr` is arithmetic shift right, `lsl` is logical shift left, and `mulhi`
-produces the high part of the result an unsigned 64-bit full multiplication.
-We further require the state to not be all zeros, i.e. `(x, y) ≠ (0, 0)`.
+where `lsl` is logical shift left, `asr` is arithmetic shift right, and `umulh`
+produces the high half of an unsigned full multiply. We further require the
+state to not be all zeros, i.e. `(x, y) != (0, 0)`.
 
 There are two things to note about these functions. First, `T` can be thought
 of as a linear transformation on the space F₂¹²⁸ of vectors of 128 bits.
-Second, for any fixed value of `x`, the function `y ⇒ (y + x * x) ^ mulhi(x, x)`
-is a permutation of F₂⁶⁴.
+Second, for any fixed value of `x`, the function `y => (x * x + y) ^ mulhi(x,
+x)` is a permutation of F₂⁶⁴.
 
 # The Period of the State Transition
 
-We will demonstrate that the state transition function has full period 2¹²⁸ - 1.
-We can do the necessary computations on matrices over the field F₂. Let `A`
-be the binary matrix representing our transition. Then it is sufficient to
-show that
+We demonstrate that the state transition function has full period 2¹²⁸ - 1. We
+can do the necessary computations on matrices over the field F₂. Let `A` be the
+binary matrix representing our transition, and let `I` be the identity matrix.
+Then it is sufficient to show that
 
 ```text
 pow(A, 2¹²⁸ - 1) = I
@@ -101,12 +90,11 @@ pow(A, 2¹²⁸ - 1) = I
 and
 
 ```text
-pow(A, (2¹²⁸ - 1) / p) ≠ I
+pow(A, (2¹²⁸ - 1) / p) != I
 ```
 
-for all prime divisors `p` of 2¹²⁸ - 1, where `I` is the identity matrix. We
-can compute powers `pow(A, n)` in `O(log(n))` time, so these computations are
-feasible.
+for all prime divisors `p` of 2¹²⁸ - 1. We can compute powers `pow(A, n)` in
+`O(log(n))` time, so these computations are feasible.
 
 The Mersenne number 2¹²⁸ - 1 factors into Fermat numbers as
 
@@ -121,8 +109,8 @@ The Mersenne number 2¹²⁸ - 1 factors into Fermat numbers as
     * (2⁶⁴ + 1)
 ```
 
-and the prime factorizations of small(er) Fermat numbers are well known. The
-full prime factorization of 2¹²⁸ - 1 is
+and the prime factorizations of small Fermat numbers are well known. The full
+prime factorization of 2¹²⁸ - 1 is
 
 ```text
 2¹²⁸ - 1 =
@@ -140,31 +128,34 @@ full prime factorization of 2¹²⁸ - 1 is
 The complete set of `(α, β)` such that
 
 ```text
-(x, y) ⇒ (y ^ asr(x, α), x ^ lsl(y, β))
+(x, y) ⇒ (y ^ lsl(x, α), x ^ asr(y, β))
 ```
 
 has full period (see code in examples/period) is
 
 ```text
-α=4 β=7
-α=26 β=37
+α=7 β=4
+α=37 β=26
 ```
 
-and we use `(4, 7)` because it has the less sparse transition matrix.
+and we use `(7, 4)` because it has the less sparse transition matrix.
 
 # Maximal Equidistribution
 
 The generator is maximally 1-equidistributed. More precisely, over the full
-2¹²⁸ - 1 cycle, zero occurs 2⁶⁴ - 1 times and every other number occurs 2⁶⁴
-times.
+cycle of 2¹²⁸ - 1 states, the zero output occurs 2⁶⁴ - 1 times and every other
+output occurs 2⁶⁴ times.
 
 This follows from the previously noted fact that for any fixed value of `x`,
-the function `y ⇒ (y + x * x) ^ mulhi(x, x)` is a permutation of F₂⁶⁴.
+the function `y => (x * x + y) ^ mulhi(x, x)` is a permutation of F₂⁶⁴, and
+that the "missing" state is `(0, 0)`.
 
 # Design Considerations
 
-A state size of 128 bits was selected because 64 bits might be too small for
-some non-cryptographic applications.
+A state size of 128 bits was selected to be barely large enough to suffice for
+almost all non-cryptographic applications. A 64 bit state is small enough that
+it isn't too difficult to detect weaknesses by brute force, and a 192 bit state
+is larger than necessary.
 
 The state transition function is similar to those in the xorshift extended
 family, but is weakened as much as possible while retaining a full period. It
@@ -178,16 +169,16 @@ was inspired by similar constructions in the "mum-hash" and "wyhash" libraries.
 It would be straightforward to increase the throughput of the algorithm by
 enlarging the state (whether the state is represented as scalars or as SIMD
 vectors), but maximizing the throughput of bulk generation is not the primary
-design objective. For example, one could imagine updating multiple copies of
-the state at the same time to take advantage of instruction level parallelism
-or vectorization.
+design objective. One could imagine a bulk generator design that updates
+multiple copies of the state at the same time to take advantage of instruction
+level parallelism or vectorization.
 
 # Benchmarks
 
 We compare dandelion with two other non-cryptographic random number generators
-that each have 128-bit states and no known statistical flaws:
+that each have 128 bit states and no known statistical flaws:
 
-- the pcg-dxsm algorithm with a 64-bit multiplier, as implemented in the
+- the pcg-dxsm algorithm with a 64 bit multiplier, as implemented in the
   `rand_pcg` crate, and
 
 - the xoroshiro128++ algorithm, as implemented in `rand_xoshiro` crate.

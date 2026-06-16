@@ -165,7 +165,7 @@ impl Rng {
     self.0 = y ^ (x << 7);
     self.1 = x ^ (y.cast_signed() >> 4).cast_unsigned();
     let z = widening_mul(x, x);
-    y.wrapping_add(lower(z)) ^ upper(z)
+    lower(z).wrapping_add(y) ^ upper(z)
   }
 
   /// Samples a `T` from the uniform distribution over all possible values of
