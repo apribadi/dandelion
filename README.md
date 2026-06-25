@@ -175,6 +175,8 @@ level parallelism or vectorization.
 
 # Benchmarks
 
+TODO: produce benchmark table from a script
+
 We compare dandelion with two other non-cryptographic random number generators
 that each have 128 bit states and no known statistical flaws:
 
@@ -234,6 +236,9 @@ xoroshiro128++
 ```
 
 # Statistical Tests
+
+TODO: redo tests
+TODO: test smaller state rngs
 
 Dandelion passed the full v0.47 SmokeRand test suite, and there is no reason to
 believe that the test is close to failing. In particular, it is *not* the case

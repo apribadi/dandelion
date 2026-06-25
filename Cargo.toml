@@ -9,9 +9,6 @@ name = "dandelion-random"
 repository = "https://github.com/apribadi/dandelion"
 version = "0.4.0"
 
-[package.metadata.docs.rs]
-all-features = true
-
 [features]
 getrandom = ["dep:getrandom"] # dandelion::Rng::from_operating_system
 rand_core = ["dep:rand_core"] # rand_core::{TryRng,Rng,SeedableRng}
@@ -23,6 +20,10 @@ name = "dandelion"
 
 [[bench]]
 name = "unified"
+harness = false
+
+[[bench]]
+name = "new"
 harness = false
 
 [[example]]
@@ -50,3 +51,6 @@ unsafe_op_in_unsafe_fn = "deny"
 unused_lifetimes = "warn"
 unused_qualifications = "warn"
 unused_results = "warn"
+
+[package.metadata.docs.rs]
+all-features = true
