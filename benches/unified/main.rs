@@ -1,244 +1,99 @@
-//! unified benchmarks
+//! benchmarks
 
 mod rngs;
-mod doubledandelion;
 
-use dandelion::Rng;
-use divan::Bencher;
-use doubledandelion::DoubleDandelion;
+use dandelion::Rng as Dandelion;
 use rand::rngs::SmallRng;
-use rand_pcg::Lcg128CmDxsm64;
-use rand_xoshiro::Xoroshiro128PlusPlus;
-use rngs::RngForBench;
+use rand_pcg::Lcg128CmDxsm64 as PcgDxsm;
+use rand_xoshiro::Xoroshiro128PlusPlus as Xoroshiro128pp;
+use rngs::Rng;
 use std::hint::black_box;
+use std::time::Instant;
 
-const N: usize = 1_000;
-const LO: u64 = 1;
-const HI: u64 = 0x1101_0000_0000_0001;
-// const HI: u64 = 6;
+const M: usize = 5_000;
+const N: usize = 2_000;
+const A: u64 = 1;
+const B: u64 = 0x1101_0000_0000_0001;
+
+fn timeit(f: &mut dyn FnMut()) -> f64 {
+  let a = Instant::now();
+  f();
+  let b = Instant::now();
+  b.saturating_duration_since(a).as_nanos() as f64
+}
+
+#[inline(never)]
+fn bench_uniform<T: Rng>(g: &mut T, r: &mut [u64; N], m: usize) {
+  for _ in 0 .. m {
+    for e in r.iter_mut() {
+      *e = g.uniform();
+    }
+  }
+}
+
+#[inline(never)]
+fn bench_between<T: Rng>(g: &mut T, r: &mut [u64; N], m: usize, a: u64, b: u64) {
+  for _ in 0 .. m {
+    for e in r.iter_mut() {
+      *e = g.between(a, b);
+    }
+  }
+}
+
+#[inline(never)]
+fn bench<T: Rng>() -> [f64; 2] {
+  let mut g = T::new();
+  let mut buf = [0u64; N];
+  [
+    timeit(&mut || bench_uniform(black_box(&mut g), black_box(&mut buf), black_box(M))),
+    timeit(&mut || bench_between(black_box(&mut g), black_box(&mut buf), black_box(M), black_box(A), black_box(B))),
+  ]
+}
+
+fn bench_all() -> [(&'static str, [f64; 2]); 4] {
+  [
+    ("rand-small-rng        ", bench::<SmallRng>()),
+    ("dandelion             ", bench::<Dandelion>()),
+    ("xoroshiro128++        ", bench::<Xoroshiro128pp>()),
+    ("pcg-dxsm              ", bench::<PcgDxsm>()),
+  ]
+}
+
+#[cfg(feature = "thread_local")]
+fn bench_thread_local() -> [(&'static str, [f64; 2]); 2] {
+  [
+    ("rand-thread-local     ", bench::<rngs::RandThreadLocal>()),
+    ("dandelion-thread-local", bench::<rngs::DandelionThreadLocal>()),
+  ]
+}
+
+fn display<const K: usize>(t: &[(&'static str, [f64; 2]); K]) {
+  for &(ref name, ref a) in t.iter() {
+    print!("{}", name);
+    for &b in a.iter() {
+      let x = b / (M * N) as f64;
+      print!(" {:.3}", x);
+    }
+    print!("\n");
+  }
+}
+
+#[inline(never)]
+fn warmup() {
+  let mut r = [0u128; N];
+  let mut x = 1u128;
+  for _ in 0 .. 100_000 {
+    let r = black_box(&mut r);
+    for e in r.iter_mut() {
+      *e = x;
+      x = x.wrapping_mul(0xf00f);
+    }
+  }
+}
 
 fn main() {
-  divan::main();
+  warmup();
+  display(&bench_all());
+  #[cfg(feature = "thread_local")] display(&bench_thread_local());
 }
 
-#[cfg(feature = "thread_local")]
-#[divan::bench]
-fn bench_thread_local_u64() -> u64 {
-  let mut a = 0u64;
-  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u64>(); }
-  a
-}
-
-#[cfg(feature = "thread_local")]
-#[divan::bench]
-fn bench_thread_local_u128() -> u128 {
-  let mut a = 0u128;
-  for _ in 0 .. N { a ^= dandelion::thread_local::uniform::<u128>(); }
-  a
-}
-
-#[cfg(feature = "thread_local")]
-#[divan::bench]
-fn bench_thread_local_u64_noinline() -> u64 {
-  #[inline(never)]
-  fn next_u64() -> u64 { dandelion::thread_local::uniform::<u64>() }
-  let mut a = 0u64;
-  for _ in 0 .. N { a ^= next_u64(); };
-  a
-}
-
-#[cfg(feature = "thread_local")]
-#[divan::bench]
-fn bench_thread_local_rand_u64() -> u64 {
-  let mut a = 0u64;
-  for _ in 0 .. N { a ^= rand::random::<u64>(); }
-  a
-}
-
-#[cfg(feature = "thread_local")]
-#[divan::bench]
-fn bench_thread_local_rand_u128() -> u128 {
-  let mut a = 0u128;
-  for _ in 0 .. N { a ^= rand::random::<u128>(); }
-  a
-}
-
-#[cfg(feature = "thread_local")]
-#[divan::bench]
-fn bench_thread_local_rand_u64_noinline() -> u64 {
-  #[inline(never)]
-  fn next_u64() -> u64 { rand::random::<u64>() }
-  let mut a = 0u64;
-  for _ in 0 .. N { a ^= next_u64(); }
-  a
-}
-
-#[divan::bench(types = [DoubleDandelion, Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_u64<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N]) {
-    for elt in buf.iter_mut() { *elt = rng.u64(); }
-  }
-  let mut buf = [0u64; N];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [DoubleDandelion, Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_u64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn next_u64<T: RngForBench>(rng: &mut T) -> u64 {
-    rng.u64()
-  }
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N]) {
-    for elt in buf.iter_mut() { *elt = next_u64(rng); }
-  }
-  let mut buf = [0u64; N];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_range_u64<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N], lo: u64, hi: u64) {
-    for elt in buf.iter_mut() { *elt = rng.range_u64(lo, hi); }
-  }
-  let mut buf = [0u64; N];
-  let mut rng = T::from_u64(black_box(0));
-  let lo = black_box(LO);
-  let hi = black_box(HI);
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf, lo, hi) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_range_u64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn range_u64<T: RngForBench>(rng: &mut T, a: u64, b: u64) -> u64 {
-    rng.range_u64(a, b)
-  }
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [u64; N], lo: u64, hi: u64) {
-    for elt in buf.iter_mut() { *elt = range_u64(rng, lo, hi); }
-  }
-  let mut buf = [0u64; N];
-  let mut rng = T::from_u64(black_box(0));
-  let lo = black_box(LO);
-  let hi = black_box(HI);
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf, lo, hi) } );
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_shuffle<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [u32; N]) {
-    rng.shuffle(buf)
-  }
-  let mut buf = [0u32; N];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_f64<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [f64; N]) {
-    for elt in buf.iter_mut() { *elt = rng.f64(); }
-  }
-  let mut buf = [0_f64; N];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_f64_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn next_f64<T: RngForBench>(rng: &mut T) -> f64 {
-    rng.f64()
-  }
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [f64; N]) {
-    for elt in buf.iter_mut() { *elt = next_f64(rng); }
-  }
-  let mut buf = [0_f64; N];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [DoubleDandelion, Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_b_large<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  let mut buf = [0u8; 8 * 1_000];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { T::fill_b(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_h_large<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  let mut buf = [0u16; 4 * 1_000];
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { T::fill_h(&mut rng, &mut buf) });
-}
-
-fn make_boxed_byte_slices() -> [Box<[u8]>; N] {
-  std::array::from_fn(|_| {
-    let mut g: u64 = 0x93c4_67e3_7db0_c7a5;
-    g = g ^ g << 7;
-    g = g ^ g >> 9;
-    vec![0u8; (g % 9) as usize].into_boxed_slice()
-  })
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_b_small<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [Box<[u8]>; N]) {
-    for elt in buf.iter_mut() { rng.fill_b(elt); }
-  }
-  let mut buf: [Box<[u8]>; N] = make_boxed_byte_slices();
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_fill_b_small_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn fill_b<T: RngForBench>(rng: &mut T, buf: &mut [u8]) {
-    rng.fill_b(buf)
-  }
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [Box<[u8]>; N]) {
-    for elt in buf.iter_mut() { fill_b(rng, elt); }
-  }
-  let mut buf: [Box<[u8]>; N] = make_boxed_byte_slices();
-  let mut rng = T::from_u64(black_box(0));
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_bernoulli<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [bool; N], p: f64) {
-    for elt in buf.iter_mut() { *elt = rng.bernoulli(p); }
-  }
-  let mut buf = [false; N];
-  let mut rng = T::from_u64(black_box(0));
-  let p = black_box(0.75);
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf, p) });
-}
-
-#[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_bernoulli_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
-  #[inline(never)]
-  fn next_bernoulli<T: RngForBench>(rng: &mut T, p: f64) -> bool {
-    rng.bernoulli(p)
-  }
-  #[inline(never)]
-  fn go<U: RngForBench>(rng: &mut U, buf: &mut [bool; N], p: f64) {
-    for elt in buf.iter_mut() { *elt = next_bernoulli(rng, p); }
-  }
-  let mut buf = [false; N];
-  let mut rng = T::from_u64(black_box(0));
-  let p = black_box(0.75);
-  bencher.bench_local(|| for _ in 0 .. N { go(&mut rng, &mut buf, p) });
-}

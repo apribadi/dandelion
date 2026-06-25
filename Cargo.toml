@@ -23,7 +23,7 @@ name = "unified"
 harness = false
 
 [[bench]]
-name = "new"
+name = "old"
 harness = false
 
 [[example]]
