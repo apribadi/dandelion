@@ -98,7 +98,7 @@ impl RngForBench for DoubleDandelion {
     unimplemented!()
   }
 
-  fn bernoulli(&mut self, _: f64) -> bool {
+  fn bool(&mut self, _: f64) -> bool {
     unimplemented!()
   }
 

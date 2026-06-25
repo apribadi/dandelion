@@ -23,8 +23,8 @@ pub fn next(g: &mut Rng) -> u64 {
 }
 
 #[inline(never)]
-pub fn bernoulli(g: &mut Rng, p: f64) -> bool {
-  g.bernoulli(p)
+pub fn bool(g: &mut Rng, p: f64) -> bool {
+  g.bool(p)
 }
 
 #[inline(never)]
@@ -347,7 +347,7 @@ pub fn xoroshiro_bounded_u64_255(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> 
 }
 
 #[inline(never)]
-pub fn xoroshiro_bernoulli(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, p: f64) -> bool {
+pub fn xoroshiro_bool(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, p: f64) -> bool {
   g.random_bool(p)
 }
 

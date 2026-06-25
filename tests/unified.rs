@@ -19,7 +19,7 @@ fn test_api() {
   write!(&mut out, "{:?}\n", Rng::from_u64(0));
   write!(&mut out, "{:?}\n", Rng::from_state(NonZeroU128::MIN));
   write!(&mut out, "{}\n", rng.state());
-  write!(&mut out, "{}\n", rng.bernoulli(0.5));
+  write!(&mut out, "{}\n", rng.bool(0.5));
   write!(&mut out, "{}\n", rng.uniform::<bool>());
   write!(&mut out, "{}\n", rng.uniform::<i32>());
   write!(&mut out, "{}\n", rng.uniform::<i64>());
@@ -103,7 +103,7 @@ fn test_api_rand_core() {
 #[test]
 fn test_api_thread_local() {
   let mut buf = [0u8; 21];
-  let _ = dandelion::thread_local::bernoulli(0.5);
+  let _ = dandelion::thread_local::bool(0.5);
   let _ = dandelion::thread_local::uniform::<bool>();
   let _ = dandelion::thread_local::uniform::<i32>();
   let _ = dandelion::thread_local::uniform::<i64>();

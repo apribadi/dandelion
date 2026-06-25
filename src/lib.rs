@@ -236,7 +236,7 @@ impl Rng {
   /// A probability `p` <= 0 or NaN is treated as 0, and a probability `p` >= 1
   /// is treated as 1.
   #[inline(always)]
-  pub fn bernoulli(&mut self, p: f64) -> bool {
+  pub fn bool(&mut self, p: f64) -> bool {
     // The specification of the float-to-integer cast in Rust is such that
     // - rounding is toward zero,
     // - NaN produces zero, and
@@ -896,10 +896,10 @@ pub mod thread_local {
     with(|g| g.float_biunit())
   }
 
-  /// See [Rng::bernoulli].
+  /// See [Rng::bool].
   #[inline]
-  pub fn bernoulli(p: f64) -> bool {
-    with(|g| g.bernoulli(p))
+  pub fn bool(p: f64) -> bool {
+    with(|g| g.bool(p))
   }
 
   /// See [Rng::shuffle].

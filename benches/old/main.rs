@@ -216,10 +216,10 @@ fn bench_fill_b_small_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
 }
 
 #[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_bernoulli<T: RngForBench>(bencher: Bencher<'_, '_>) {
+fn bench_bool<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [bool; N], p: f64) {
-    for elt in buf.iter_mut() { *elt = rng.bernoulli(p); }
+    for elt in buf.iter_mut() { *elt = rng.bool(p); }
   }
   let mut buf = [false; N];
   let mut rng = T::from_u64(black_box(0));
@@ -228,14 +228,14 @@ fn bench_bernoulli<T: RngForBench>(bencher: Bencher<'_, '_>) {
 }
 
 #[divan::bench(types = [Rng, Lcg128CmDxsm64, Xoroshiro128PlusPlus, SmallRng])]
-fn bench_bernoulli_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
+fn bench_bool_noinline<T: RngForBench>(bencher: Bencher<'_, '_>) {
   #[inline(never)]
-  fn next_bernoulli<T: RngForBench>(rng: &mut T, p: f64) -> bool {
-    rng.bernoulli(p)
+  fn next_bool<T: RngForBench>(rng: &mut T, p: f64) -> bool {
+    rng.bool(p)
   }
   #[inline(never)]
   fn go<U: RngForBench>(rng: &mut U, buf: &mut [bool; N], p: f64) {
-    for elt in buf.iter_mut() { *elt = next_bernoulli(rng, p); }
+    for elt in buf.iter_mut() { *elt = next_bool(rng, p); }
   }
   let mut buf = [false; N];
   let mut rng = T::from_u64(black_box(0));

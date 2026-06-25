@@ -10,6 +10,7 @@ use rngs::Rng;
 use std::hint::black_box;
 use std::time::Instant;
 
+const L: usize = 4;
 const M: usize = 5_000;
 const N: usize = 2_000;
 const A: u64 = 1;
@@ -41,16 +42,18 @@ fn bench_between<T: Rng>(g: &mut T, r: &mut [u64; N], m: usize, a: u64, b: u64) 
 }
 
 #[inline(never)]
-fn bench<T: Rng>() -> [f64; 2] {
+fn bench<T: Rng>() -> [f64; L] {
   let mut g = T::new();
   let mut buf = [0u64; N];
   [
     timeit(&mut || bench_uniform(black_box(&mut g), black_box(&mut buf), black_box(M))),
     timeit(&mut || bench_between(black_box(&mut g), black_box(&mut buf), black_box(M), black_box(A), black_box(B))),
+    timeit(&mut || bench_uniform(black_box(&mut g), black_box(&mut buf), black_box(M))),
+    timeit(&mut || bench_uniform(black_box(&mut g), black_box(&mut buf), black_box(M))),
   ]
 }
 
-fn bench_all() -> [(&'static str, [f64; 2]); 4] {
+fn bench_all() -> [(&'static str, [f64; L]); 4] {
   [
     ("rand-small-rng        ", bench::<SmallRng>()),
     ("dandelion             ", bench::<Dandelion>()),
@@ -60,19 +63,22 @@ fn bench_all() -> [(&'static str, [f64; 2]); 4] {
 }
 
 #[cfg(feature = "thread_local")]
-fn bench_thread_local() -> [(&'static str, [f64; 2]); 2] {
+fn bench_thread_local() -> [(&'static str, [f64; L]); 2] {
   [
     ("rand-thread-local     ", bench::<rngs::RandThreadLocal>()),
     ("dandelion-thread-local", bench::<rngs::DandelionThreadLocal>()),
   ]
 }
 
-fn display<const K: usize>(t: &[(&'static str, [f64; 2]); K]) {
+fn display<const K: usize>(t: &[(&'static str, [f64; L]); K]) {
   for &(ref name, ref a) in t.iter() {
-    print!("{}", name);
-    for &b in a.iter() {
+    print!("{} ", name);
+    for (i, &b) in a.iter().enumerate() {
+      if i != 0 {
+        print!("     ");
+      }
       let x = b / (M * N) as f64;
-      print!(" {:.3}", x);
+      print!("{:.3}", x);
     }
     print!("\n");
   }
@@ -93,6 +99,7 @@ fn warmup() {
 
 fn main() {
   warmup();
+  print!("                       uniform   between   bool      foo\n");
   display(&bench_all());
   #[cfg(feature = "thread_local")] display(&bench_thread_local());
 }
