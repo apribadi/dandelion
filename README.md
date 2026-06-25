@@ -312,7 +312,7 @@ TODO: explain
 
 TODO: explain
 
-# Portability for Platform Endianness and Word Size
+# Portability
 
 Generator output does not depend on platform endianness.
 

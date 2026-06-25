@@ -5,8 +5,8 @@ use rand::seq::SliceRandom as _;
 
 pub(crate) trait Rng {
   fn from_u64(n: u64) -> Self;
-  fn uniform_u64(&mut self) -> u64;
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64;
+  fn uniform(&mut self) -> u64;
+  fn between(&mut self, lo: u64, hi: u64) -> u64;
   fn f64(&mut self) -> f64;
   fn bernoulli(&mut self, p: f64) -> bool;
   fn fill_b(&mut self, buf: &mut [u8]);
@@ -16,8 +16,8 @@ pub(crate) trait Rng {
 
 impl Rng for dandelion::Rng {
   fn from_u64(n: u64) -> Self { Self::from_u64(n) }
-  fn uniform_u64(&mut self) -> u64 { self.uniform() }
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.between(lo, hi) }
+  fn uniform(&mut self) -> u64 { self.uniform() }
+  fn between(&mut self, lo: u64, hi: u64) -> u64 { self.between(lo, hi) }
   fn f64(&mut self) -> f64 { self.float() }
   fn bernoulli(&mut self, p: f64) -> bool { self.bernoulli(p) }
   fn fill_b(&mut self, buf: &mut [u8]) { self.fill(buf); }
@@ -27,8 +27,8 @@ impl Rng for dandelion::Rng {
 
 impl Rng for rand::rngs::SmallRng {
   fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn uniform_u64(&mut self) -> u64 { self.next_u64() }
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  fn uniform(&mut self) -> u64 { self.next_u64() }
+  fn between(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
   fn f64(&mut self) -> f64 { self.random() }
   fn bernoulli(&mut self, p: f64) -> bool { self.random_bool(p) }
   fn fill_b(&mut self, buf: &mut [u8]) { self.fill_bytes(buf); }
@@ -38,8 +38,8 @@ impl Rng for rand::rngs::SmallRng {
 
 impl Rng for rand_pcg::Lcg128CmDxsm64 {
   fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn uniform_u64(&mut self) -> u64 { self.next_u64() }
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  fn uniform(&mut self) -> u64 { self.next_u64() }
+  fn between(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
   fn f64(&mut self) -> f64 { self.random() }
   fn bernoulli(&mut self, p: f64) -> bool { self.random_bool(p) }
   fn fill_b(&mut self, buf: &mut [u8]) { self.fill_bytes(buf); }
@@ -49,8 +49,8 @@ impl Rng for rand_pcg::Lcg128CmDxsm64 {
 
 impl Rng for rand_xoshiro::Xoroshiro128PlusPlus {
   fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn uniform_u64(&mut self) -> u64 { self.next_u64() }
-  fn between_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  fn uniform(&mut self) -> u64 { self.next_u64() }
+  fn between(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
   fn f64(&mut self) -> f64 { self.random() }
   fn bernoulli(&mut self, p: f64) -> bool { self.random_bool(p) }
   fn fill_b(&mut self, buf: &mut [u8]) { self.fill_bytes(buf); }
