@@ -175,8 +175,6 @@ level parallelism or vectorization.
 
 # Benchmarks
 
-TODO: produce benchmark table from a script
-
 We compare dandelion with two other non-cryptographic random number generators
 that each have 128 bit states and no known statistical flaws:
 
@@ -188,6 +186,16 @@ that each have 128 bit states and no known statistical flaws:
 Both alternatives use the `rand` crate to implement generating integers in
 a range, generating floats, and filling byte buffers.
 
+```text
+                        uniform  uniform-ni  between  between-ni  float  bool   fill   fill-sm  shuffle
+dandelion               0.882    2.388       1.513    3.148       0.875  1.331  0.858  2.872    0.867
+xoroshiro128++          1.460    3.337       3.859    3.933       1.493  1.565  1.476  3.335    2.189
+pcg-dxsm                1.646    4.068       2.478    4.886       1.624  1.723  1.656  3.825    2.299
+rand-small-rng          1.160    2.908       3.615    3.771       1.203  1.257  1.187  4.002    2.236
+rand-thread-local       7.112    7.847       9.542    9.969       8.045  7.184  3.973  11.888   3.496
+dandelion-thread-local  1.020    2.411       3.670    4.340       1.424  1.485  0.857  4.206    0.864
+```
+
 The benchmarks labeled "noinline" ensure that random number generation is not
 inlined into the benchmark loop. This measures performance in a scenario where
 certain parts of random number generation cannot be amortized, as can happen
@@ -195,7 +203,12 @@ when random number generation is embedded within a larger algorithm. For
 instance, the compiler might not be able to do store-to-load forwarding of the
 generator state or to hoist loading of large constants.
 
-The benchmarks were run on an Apple M1 Macbook Air.
+The benchmarks were run on an Apple M1 Macbook Air. The table was generated
+with the following command:
+
+```text
+cargo bench unified --all-features --quiet | tail +6 | xan view -A -I -M --color never --theme compact
+```
 
 ```text
 dandelion

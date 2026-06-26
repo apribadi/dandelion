@@ -22,10 +22,6 @@ name = "dandelion"
 name = "unified"
 harness = false
 
-[[bench]]
-name = "old"
-harness = false
-
 [[example]]
 name = "asm"
 crate-type = ["lib"]

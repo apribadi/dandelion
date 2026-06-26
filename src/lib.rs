@@ -256,8 +256,7 @@ impl Rng {
     // On x86-64, the bounds checks against 0.0 and 2.0 ** 64 are performed
     // directly.
     let n = (p * f64::from_bits(0x43f0_0000_0000_0000)) as u64;
-    let x = self.next();
-    x < n || n == u64::MAX
+    self.next() < n || n == u64::MAX
   }
 
   /// Shuffles a mutable slice in place with a random permutation.
@@ -349,7 +348,6 @@ impl Rng {
     }
   }
 
-  #[inline(always)]
   fn fill_b(&mut self, buf: &mut [u8]) {
     self.fill_b_inlined(buf);
   }
