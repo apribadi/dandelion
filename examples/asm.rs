@@ -28,17 +28,17 @@ pub fn bool(g: &mut Rng, p: f64) -> bool {
 }
 
 #[inline(never)]
-pub fn bool(g: &mut Rng) -> bool {
+pub fn uniform_bool(g: &mut Rng) -> bool {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn u32(g: &mut Rng) -> u32 {
+pub fn uniform_u32(g: &mut Rng) -> u32 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn u128(g: &mut Rng) -> u128 {
+pub fn uniform_u128(g: &mut Rng) -> u128 {
   g.uniform()
 }
 
@@ -108,17 +108,17 @@ pub fn between_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
 }
 
 #[inline(never)]
-pub fn non_zero_u32(g: &mut Rng) -> NonZeroU32 {
+pub fn uniform_non_zero_u32(g: &mut Rng) -> NonZeroU32 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn non_zero_u64(g: &mut Rng) -> NonZeroU64 {
+pub fn uniform_non_zero_u64(g: &mut Rng) -> NonZeroU64 {
   g.uniform()
 }
 
 #[inline(never)]
-pub fn non_zero_u128(g: &mut Rng) -> NonZeroU128 {
+pub fn uniform_non_zero_u128(g: &mut Rng) -> NonZeroU128 {
   g.uniform()
 }
 

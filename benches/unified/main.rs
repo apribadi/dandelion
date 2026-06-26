@@ -10,7 +10,7 @@ use rngs::Rng;
 use std::hint::black_box;
 use std::time::Instant;
 
-const L: usize = 9;
+const L: usize = 10;
 const M: usize = 5_000;
 const N: usize = 2_000;
 const A: u64 = 1;
@@ -97,6 +97,15 @@ fn bench_fill_bl<T: Rng>(g: &mut T, r: &mut [u8], m: usize) {
 }
 
 #[inline(never)]
+fn bench_fill_bs<T: Rng>(g: &mut T, r: &mut [Box<[u8]>; N], m: usize) {
+  for _ in 0 .. m {
+    for e in r.iter_mut() {
+      g.fill_b(e);
+    }
+  }
+}
+
+#[inline(never)]
 fn bench_fill_hl<T: Rng>(g: &mut T, r: &mut [u16], m: usize) {
   for _ in 0 .. m {
     g.fill_h(r);
@@ -110,66 +119,60 @@ fn bench_shuffle<T: Rng>(g: &mut T, r: &mut [u8], m: usize) {
   }
 }
 
+struct Bufs {
+  buf0: Box<[u64; N]>,
+  buf1: Box<[f64; N]>,
+  buf2: Box<[bool; N]>,
+  buf3: Box<[u8; 8 * N]>,
+  buf4: Box<[u16; 4 * N]>,
+  buf5: Box<[u8; N]>,
+  buf6: Box<[Box<[u8]>; N]>,
+}
+
 #[inline(never)]
-fn bench<T: Rng>() -> [f64; L] {
+fn bench<T: Rng>(bufs: &mut Bufs) -> [f64; L] {
   let mut g = T::new();
+  let g = black_box(&mut g);
   [
-    { let mut buf = [0u64; N];
-      timeit(&mut || bench_uniform(black_box(&mut g), black_box(&mut buf), black_box(M)))
-    },
-    { let mut buf = [0u64; N];
-      timeit(&mut || bench_uniform_ni(black_box(&mut g), black_box(&mut buf), black_box(M)))
-    },
-    { let mut buf = [0u64; N];
-      timeit(&mut || bench_between(black_box(&mut g), black_box(&mut buf), black_box(M), black_box(A), black_box(B)))
-    },
-    { let mut buf = [0u64; N];
-      timeit(&mut || bench_between_ni(black_box(&mut g), black_box(&mut buf), black_box(M), black_box(A), black_box(B)))
-    },
-    { let mut buf = [0f64; N];
-      timeit(&mut || bench_float(black_box(&mut g), black_box(&mut buf), black_box(M)))
-    },
-    { let mut buf = [false; N];
-      timeit(&mut || bench_bool(black_box(&mut g), black_box(&mut buf), black_box(M), black_box(P)))
-    },
-    { let mut buf = [0u8; 8 * N];
-      timeit(&mut || bench_fill_bl(black_box(&mut g), black_box(buf.as_mut_slice()), black_box(M)))
-    },
-    { let mut buf = [0u16; 4 * N];
-      timeit(&mut || bench_fill_hl(black_box(&mut g), black_box(buf.as_mut_slice()), black_box(M)))
-    },
-    { let mut buf = [0u8; N];
-      timeit(&mut || bench_shuffle(black_box(&mut g), black_box(buf.as_mut_slice()), black_box(M)))
-    },
+    timeit(&mut || bench_uniform(g, &mut bufs.buf0, black_box(M))),
+    timeit(&mut || bench_uniform_ni(g, &mut bufs.buf0, black_box(M))),
+    timeit(&mut || bench_between(g, &mut bufs.buf0, black_box(M), black_box(A), black_box(B))),
+    timeit(&mut || bench_between_ni(g, &mut bufs.buf0, black_box(M), black_box(A), black_box(B))),
+    timeit(&mut || bench_float(g, &mut bufs.buf1, black_box(M))),
+    timeit(&mut || bench_bool(g, &mut bufs.buf2, black_box(M), black_box(P))),
+    timeit(&mut || bench_fill_bl(g, bufs.buf3.as_mut_slice(), black_box(M))),
+    timeit(&mut || bench_fill_bs(g, &mut bufs.buf6, black_box(M))),
+    timeit(&mut || bench_fill_hl(g, bufs.buf4.as_mut_slice(), black_box(M))),
+    timeit(&mut || bench_shuffle(g, bufs.buf5.as_mut_slice(), black_box(M))),
   ]
 }
 
-fn bench_all() -> [(&'static str, [f64; L]); 4] {
+fn bench_all(bufs: &mut Bufs) -> [(&'static str, [f64; L]); 4] {
   [
-    ("rand-small-rng        ", bench::<SmallRng>()),
-    ("dandelion             ", bench::<Dandelion>()),
-    ("xoroshiro128++        ", bench::<Xoroshiro128pp>()),
-    ("pcg-dxsm              ", bench::<PcgDxsm>()),
+    ("rand-small-rng", bench::<SmallRng>(bufs)),
+    ("dandelion", bench::<Dandelion>(bufs)),
+    ("xoroshiro128++", bench::<Xoroshiro128pp>(bufs)),
+    ("pcg-dxsm", bench::<PcgDxsm>(bufs)),
   ]
 }
 
 #[cfg(feature = "thread_local")]
-fn bench_thread_local() -> [(&'static str, [f64; L]); 2] {
+fn bench_thread_local(bufs: &mut Bufs) -> [(&'static str, [f64; L]); 2] {
   [
-    ("rand-thread-local     ", bench::<rngs::RandThreadLocal>()),
-    ("dandelion-thread-local", bench::<rngs::DandelionThreadLocal>()),
+    ("rand-thread-local", bench::<rngs::RandThreadLocal>(bufs)),
+    ("dandelion-thread-local", bench::<rngs::DandelionThreadLocal>(bufs)),
   ]
 }
 
 fn display<const K: usize>(t: &[(&'static str, [f64; L]); K]) {
   for &(ref name, ref a) in t.iter() {
-    print!("{} ", name);
+    print!("{:<22} ", name);
     for (i, &b) in a.iter().enumerate() {
       if i != 0 {
-        print!("   ");
+        print!(" ");
       }
       let x = b / (M * N) as f64;
-      print!("{:.3}", x);
+      print!("{:>8.3}", x);
     }
     print!("\n");
   }
@@ -189,9 +192,47 @@ fn warmup() {
 }
 
 fn main() {
+  let mut bufs =
+    Bufs {
+      buf0: vec![0u64; N].try_into().unwrap(),
+      buf1: vec![0f64; N].try_into().unwrap(),
+      buf2: vec![false; N].try_into().unwrap(),
+      buf3: vec![0u8; 8 * N].try_into().unwrap(),
+      buf4: vec![016; 4 * N].try_into().unwrap(),
+      buf5: vec![0u8; N].try_into().unwrap(),
+      buf6: {
+        let mut g: u64 = 0x93c4_67e3_7db0_c7a5;
+        Box::new(
+          std::array::from_fn(|_| {
+            g = g ^ g << 7;
+            g = g ^ g >> 9;
+            vec![0u8; (g % 9) as usize].into_boxed_slice()
+          })
+        )
+      },
+    };
   warmup();
-  print!("                       uni     uni-ni  bet     bet-ni  flt     bool    fill-bl fill-hl shuffle\n");
-  display(&bench_all());
-  #[cfg(feature = "thread_local")] display(&bench_thread_local());
+  print!("{:22} ", "");
+  for (i, s) in
+    [ "uni",
+      "uni-ni",
+      "bet",
+      "bet-ni",
+      "float",
+      "bool",
+      "fill-bl",
+      "fill-bs",
+      "fill-hl",
+      "shuffle"
+    ].iter().enumerate()
+  {
+    if i != 0 {
+      print!(" ");
+    }
+    print!("{:>8}", s);
+  }
+  print!("\n");
+  display(&bench_all(&mut bufs));
+  #[cfg(feature = "thread_local")] display(&bench_thread_local(&mut bufs));
 }
 

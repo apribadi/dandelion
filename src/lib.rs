@@ -349,6 +349,7 @@ impl Rng {
     }
   }
 
+  #[inline(always)]
   fn fill_b(&mut self, buf: &mut [u8]) {
     self.fill_b_inlined(buf);
   }
