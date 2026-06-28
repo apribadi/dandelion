@@ -90,17 +90,17 @@ fn bench_bool<T: Rng>(g: &mut T, r: &mut [bool; N], m: usize, p: f64) {
 }
 
 #[inline(never)]
-fn bench_fill_b<T: Rng>(g: &mut T, r: &mut [u8], m: usize) {
+fn bench_fill<T: Rng>(g: &mut T, r: &mut [u8], m: usize) {
   for _ in 0 .. m {
-    g.fill_b(r);
+    g.fill(r);
   }
 }
 
 #[inline(never)]
-fn bench_fill_b_small<T: Rng>(g: &mut T, r: &mut [Box<[u8]>; N], m: usize) {
+fn bench_fill_small<T: Rng>(g: &mut T, r: &mut [Box<[u8]>; N], m: usize) {
   for _ in 0 .. m {
     for e in r.iter_mut() {
-      g.fill_b(e);
+      g.fill(e);
     }
   }
 }
@@ -116,8 +116,8 @@ struct Bufs(
   Box<[u64; N]>,
   Box<[f64; N]>,
   Box<[bool; N]>,
-  Box<[u8; 8 * N]>,
-  Box<[u8; N]>,
+  Box<[u8]>,
+  Box<[u8]>,
   Box<[Box<[u8]>; N]>,
 );
 
@@ -131,9 +131,9 @@ fn bench<T: Rng>(bufs: &mut Bufs) -> [f64; L] {
     timeit(&mut || bench_between_ni(black_box(&mut g), &mut bufs.0, black_box(M), black_box(A), black_box(B))),
     timeit(&mut || bench_float(black_box(&mut g), &mut bufs.1, black_box(M))),
     timeit(&mut || bench_bool(black_box(&mut g), &mut bufs.2, black_box(M), black_box(P))),
-    timeit(&mut || bench_fill_b(black_box(&mut g), bufs.3.as_mut_slice(), black_box(M))),
-    timeit(&mut || bench_fill_b_small(black_box(&mut g), &mut bufs.5, black_box(M))),
-    timeit(&mut || bench_shuffle(black_box(&mut g), bufs.4.as_mut_slice(), black_box(M))),
+    timeit(&mut || bench_fill(black_box(&mut g), &mut bufs.3, black_box(M))),
+    timeit(&mut || bench_fill_small(black_box(&mut g), &mut bufs.5, black_box(M))),
+    timeit(&mut || bench_shuffle(black_box(&mut g), &mut bufs.4, black_box(M))),
   ]
 }
 
@@ -184,8 +184,8 @@ fn main() {
       vec![0u64; N].try_into().unwrap(),
       vec![0f64; N].try_into().unwrap(),
       vec![false; N].try_into().unwrap(),
-      vec![0u8; 8 * N].try_into().unwrap(),
-      vec![0u8; N].try_into().unwrap(),
+      vec![0u8; 8 * N].into_boxed_slice(),
+      vec![0u8; N].into_boxed_slice(),
       {
         let mut g: u64 = 0x93c4_67e3_7db0_c7a5;
         let mut a = Vec::new();
