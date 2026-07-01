@@ -6,18 +6,19 @@ producing random numbers for algorithms applied to simulation, testing,
 statistics, data structures, etc.
 
 Particular attention has been paid to keeping the footprint of the generator
-small (e.g. small code size, small state, no large constants) so that it can be
-used to generate a few random numbers at a time without negatively impacting
-the performance of surrounding code.
+small (e.g. small code size, small state) so that it can be used to generate a
+few random numbers at a time without negatively impacting the performance of
+surrounding code.
 
-You can initialize a `Rng` from a deterministic seed with `Rng::new` or
-`Rng::from_u64`, or you can initialize a `Rng` from a platform provided source
-of randomness with `Rng::from_operating_system`. You can also access a
-thread-local `Rng` instance with the `dandelion::thread_local` module.
+You can deterministically initialize a `Rng` from a seed with `Rng::new` or
+`Rng::from_u64`, or you can non-deterministically initialize a `Rng` from a
+platform provided source of randomness with `Rng::from_operating_system`. You
+can also access a thread-local `Rng` instance with the
+`dandelion::thread_local` module.
 
 Much of the API for generating random numbers is organized around a few sealed
-traits. For example, the `Rng::uniform` method can be used to generate a value
-of any type that satisfies the `RandomUniform` trait.
+traits. For example, the `Rng::uniform` method can generate a value of any type
+that satisfies the `RandomUniform` trait.
 
 ```
 let mut g = dandelion::Rng::new(std::num::NonZeroU128::MIN);
@@ -73,7 +74,7 @@ state to not be all zeros, i.e. `(x, y) != (0, 0)`.
 
 There are two things to note about these functions. First, `T` can be thought
 of as a linear transformation on the space F₂¹²⁸ of vectors of 128 bits.
-Second, for any fixed value of `x`, the function `y => (x * x + y) ^ mulhi(x,
+Second, for any fixed value of `x`, the function `y => (x * x + y) ^ umulhi(x,
 x)` is a permutation of F₂⁶⁴.
 
 # The Period of the State Transition
@@ -154,8 +155,8 @@ that the "missing" state is `(0, 0)`.
 
 A state size of 128 bits was selected to be barely large enough to suffice for
 almost all non-cryptographic applications. A 64 bit state is small enough that
-it isn't too difficult to detect weaknesses by brute force, and a 192 bit state
-is larger than necessary.
+it isn't too difficult to detect statistical weaknesses by brute force, and a
+192 bit state is larger than necessary.
 
 The state transition function is similar to those in the xorshift extended
 family, but is weakened as much as possible while retaining a full period. It
@@ -167,85 +168,52 @@ lot of mixing while being relatively cheap on current CPUs. This kind of mixer
 was inspired by similar constructions in the "mum-hash" and "wyhash" libraries.
 
 It would be straightforward to increase the throughput of the algorithm by
-enlarging the state (whether the state is represented as scalars or as SIMD
-vectors), but maximizing the throughput of bulk generation is not the primary
-design objective. One could imagine a bulk generator design that updates
-multiple copies of the state at the same time to take advantage of instruction
-level parallelism or vectorization.
+enlarging the state (whether the state is represented as a set of scalars or
+SIMD vectors), but maximizing the throughput of bulk generation is not the
+primary design objective. One could imagine a generator design that instead
+updates multiple copies of the state at the same time to take advantage of
+either instruction level parallelism or vectorization.
 
 # Benchmarks
 
-We compare dandelion with two other non-cryptographic random number generators
-that each have 128 bit states and no known statistical flaws:
+We compare dandelion with a few other random number generators.
 
-- the pcg-dxsm algorithm with a 64 bit multiplier, as implemented in the
-  `rand_pcg` crate, and
+- The xoroshiro128++ algorithm, as implemented in `rand_xoshiro` crate.
+- The pcg-dxsm algorithm with a 64 bit multiplier, as implemented in the
+  `rand_pcg` crate.
+- The `rand` crate's `SmallRng`, which currently uses xoshiro256++.
+- THe `rand` crate's thread-local generator, which currently uses 12-round
+  chacha.
 
-- the xoroshiro128++ algorithm, as implemented in `rand_xoshiro` crate.
+The first two algorithms are notable for each being a non-cryptographic random
+number generator with a 128 bit state and no known statistical flaws. The last
+two algorithms are de-facto standards in the Rust crate ecosystem.
 
-Both alternatives use the `rand` crate to implement generating integers in
-a range, generating floats, and filling byte buffers.
+The alternative algorithms use the `rand` crate to implement generating
+integers in a range, generating floats, and filling byte buffers.
 
 ```text
                         uniform  uniform-ni  between  between-ni  float  bool   fill   fill-sm  shuffle
-dandelion               0.882    2.388       1.513    3.148       0.875  1.331  0.858  2.872    0.867
-xoroshiro128++          1.460    3.337       3.859    3.933       1.493  1.565  1.476  3.335    2.189
-pcg-dxsm                1.646    4.068       2.478    4.886       1.624  1.723  1.656  3.825    2.299
-rand-small-rng          1.160    2.908       3.615    3.771       1.203  1.257  1.187  4.002    2.236
-rand-thread-local       7.112    7.847       9.542    9.969       8.045  7.184  3.973  11.888   3.496
-dandelion-thread-local  1.020    2.411       3.670    4.340       1.424  1.485  0.857  4.206    0.864
+dandelion               0.531    1.804       0.944    2.265       0.534  0.577  0.518  2.167    0.581
+xoroshiro128++          0.981    2.318       2.252    2.645       0.986  0.971  0.998  2.561    1.238
+pcg-dxsm                1.139    2.760       1.698    3.173       1.145  1.163  1.138  2.432    1.333
+rand-small-rng          0.654    2.117       2.023    2.335       0.673  0.667  0.648  2.418    1.165
+dandelion-thread-local  0.538    1.892       2.456    2.493       0.608  0.612  0.519  3.089    0.587
+rand-thread-local       5.246    5.840       6.072    6.811       5.331  3.963  2.533  7.307    2.208
 ```
 
-The benchmarks labeled "noinline" ensure that random number generation is not
+The benchmarks labeled "`-ni`" ensure that random number generation is not
 inlined into the benchmark loop. This measures performance in a scenario where
 certain parts of random number generation cannot be amortized, as can happen
 when random number generation is embedded within a larger algorithm. For
 instance, the compiler might not be able to do store-to-load forwarding of the
 generator state or to hoist loading of large constants.
 
-The benchmarks were run on an Apple M1 Macbook Air. The table was generated
-with the following command:
+The benchmarks were run on an Apple M5. The data was generated with the
+following command:
 
 ```text
-cargo bench unified --all-features --quiet | tail +6 | xan view -A -I -M --color never --theme compact
-```
-
-```text
-dandelion
-0.883 ns/word - u64
-2.399 ns/word - u64 noinline
-1.721 ns/word - range_u64
-3.185 ns/word - range_u64 noinline
-0.890 ns/word - f64
-2.442 ns/word - f64 noinline
-0.858 ns/word - fill large
-2.348 ns/word - fill small
-2.504 ns/word - fill small noinline
-0.945 ns/word - shuffle
-
-pcgdxsm128
-1.643 ns/word - u64
-4.066 ns/word - u64 noinline
-2.483 ns/word - range_u64
-4.897 ns/word - range_u64 noinline
-1.630 ns/word - f64
-4.054 ns/word - f64 noinline
-1.654 ns/word - fill large
-4.071 ns/word - fill small
-4.693 ns/word - fill small noinline
-2.067 ns/word - shuffle
-
-xoroshiro128++
-1.463 ns/word - u64
-3.328 ns/word - u64 noinline
-3.826 ns/word - range_u64 (n.b. pessimized by llvm)
-3.898 ns/word - range_u64 noinline
-1.463 ns/word - f64
-3.458 ns/word - f64 noinline
-1.474 ns/word - fill large
-3.758 ns/word - fill small
-4.380 ns/word - fill small noinline
-1.970 ns/word - shuffle
+cargo bench unified --all-features
 ```
 
 # Statistical Tests
@@ -260,70 +228,6 @@ statistical tests passed.
 
 The `examples/rng` executable writes random bytes to stdout, which you can use
 to run your own statistical tests.
-
-# Sampling From a Range
-
-TODO: Canon's method for u32 and u64
-
-```text
-bounded_u64:
-    ldp x8, x11, [x0]
-    eor x9, x11, x8, lsl #7
-    eor x10, x8, x11, asr #4
-    umulh x12, x8, x8
-    madd x8, x8, x8, x11
-    eor x8, x8, x12
-    adds x11, x1, #1
-    mul x12, x8, x11
-    umulh x13, x8, x11
-    csel x8, x8, x13, hs
-    cmn x12, x1
-    b.lo L3
-    mov x8, x13
-L2:
-    mov x13, x9
-    eor x9, x10, x9, lsl #7
-    madd x14, x13, x13, x10
-    eor x10, x13, x10, asr #4
-    umulh x13, x13, x13
-    eor x13, x14, x13
-    umulh x14, x13, x11
-    adds x14, x12, x14
-    mul x12, x13, x11
-    cinc x8, x8, hs
-    cmn x14, #1
-    b.eq L2
-L3:
-    stp x9, x10, [x0]
-    mov x0, x8
-    ret
-```
-
-# Sampling Floating-Point Numbers
-
-TODO: explain
-
-```text
-f64:
-    ldp x8, x9, [x0]
-    eor x10, x9, x8, lsl #7
-    eor x11, x8, x9, asr #4
-    stp x10, x11, [x0]
-    umulh x10, x8, x8
-    madd x8, x8, x8, x9
-    eor x8, x8, x10
-    scvtf d0, x8, #63
-    fabs d0, d0
-    ret
-```
-
-# Sampling Multiple Uniform Small Integers
-
-TODO: explain
-
-# Thread Local Generator
-
-TODO: explain
 
 # Portability
 

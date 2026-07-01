@@ -74,10 +74,12 @@ const fn widening_mul(x: u64, y: u64) -> u128 {
   x as u128 * y as u128
 }
 
+#[inline(always)]
 const fn lower(x: u128) -> u64 {
   x as u64
 }
 
+#[inline(always)]
 const fn upper(x: u128) -> u64 {
   (x >> 64) as u64
 }

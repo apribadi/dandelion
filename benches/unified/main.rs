@@ -149,8 +149,8 @@ fn bench_all(bufs: &mut Bufs) -> [(&'static str, [f64; L]); 4] {
 #[cfg(feature = "thread_local")]
 fn bench_thread_local(bufs: &mut Bufs) -> [(&'static str, [f64; L]); 2] {
   [
-    ("rand-thread-local", bench::<rngs::RandThreadLocal>(bufs)),
     ("dandelion-thread-local", bench::<rngs::DandelionThreadLocal>(bufs)),
+    ("rand-thread-local", bench::<rngs::RandThreadLocal>(bufs)),
   ]
 }
 
