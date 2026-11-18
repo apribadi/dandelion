@@ -1,59 +1,83 @@
-use dandelion::Rng;
+use std::hint::black_box;
 use rand::Rng as _;
 use rand::RngExt as _;
 use rand::SeedableRng as _;
-use rand::seq::SliceRandom;
-use rand_pcg::Lcg128CmDxsm64;
-use rand_xoshiro::Xoroshiro128PlusPlus;
+use rand::seq::SliceRandom as _;
 
-pub(crate) trait RngForBench: Clone {
-  fn from_u64(n: u64) -> Self;
-  fn u64(&mut self) -> u64;
-  fn range_u64(&mut self, lo: u64, hi: u64) -> u64;
-  fn f64(&mut self) -> f64;
-  fn bernoulli(&mut self, p: f64) -> bool;
+pub(crate) trait Rng {
+  fn new() -> Self;
+  fn uniform(&mut self) -> u64;
+  fn between(&mut self, lo: u64, hi: u64) -> u64;
+  fn float(&mut self) -> f64;
+  fn bool(&mut self, p: f64) -> bool;
   fn fill(&mut self, buf: &mut [u8]);
   fn shuffle<T>(&mut self, slice: &mut [T]);
-
-  #[inline(never)]
-  fn u64_noinline(&mut self) -> u64 { self.u64() }
-
-  #[inline(never)]
-  fn range_u64_noinline(&mut self, lo: u64, hi: u64) -> u64 { self.range_u64(lo, hi) }
-
-  #[inline(never)]
-  fn f64_noinline(&mut self) -> f64 { self.f64() }
-
-  #[inline(never)]
-  fn fill_noinline(&mut self, buf: &mut [u8]) { self.fill(buf) }
 }
 
-impl RngForBench for Rng {
-  fn from_u64(n: u64) -> Self { Self::from_u64(n) }
-  fn u64(&mut self) -> u64 { self.u64() }
-  fn range_u64(&mut self, lo: u64, hi: u64) -> u64 { self.range_u64(lo, hi) }
-  fn f64(&mut self) -> f64 { self.f64() }
-  fn bernoulli(&mut self, p: f64) -> bool { self.bernoulli(p) }
-  fn fill(&mut self, buf: &mut [u8]) { self.fill(buf) }
-  fn shuffle<T>(&mut self, slice: &mut [T]) { self.shuffle(slice) }
+impl Rng for dandelion::Rng {
+  fn new() -> Self { Self::from_u64(black_box(0)) }
+  #[inline] fn uniform(&mut self) -> u64 { self.uniform() }
+  #[inline] fn between(&mut self, lo: u64, hi: u64) -> u64 { self.between(lo, hi) }
+  #[inline] fn float(&mut self) -> f64 { self.float() }
+  #[inline] fn bool(&mut self, p: f64) -> bool { self.bool(p) }
+  fn fill(&mut self, buf: &mut [u8]) { self.fill(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { self.shuffle(slice); }
 }
 
-impl RngForBench for Lcg128CmDxsm64 {
-  fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn u64(&mut self) -> u64 { self.random() }
-  fn range_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
-  fn f64(&mut self) -> f64 { self.random() }
-  fn bernoulli(&mut self, p: f64) -> bool { self.random_bool(p) }
-  fn fill(&mut self, buf: &mut [u8]) { self.fill_bytes(buf) }
-  fn shuffle<T>(&mut self, slice: &mut [T]) { <[T] as SliceRandom>::shuffle(slice, self) }
+impl Rng for rand::rngs::SmallRng {
+  fn new() -> Self { Self::seed_from_u64(black_box(0)) }
+  #[inline] fn uniform(&mut self) -> u64 { self.next_u64() }
+  #[inline] fn between(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  #[inline] fn float(&mut self) -> f64 { self.random() }
+  #[inline] fn bool(&mut self, p: f64) -> bool { self.random_bool(p) }
+  fn fill(&mut self, buf: &mut [u8]) { self.fill_bytes(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { slice.shuffle(self); }
 }
 
-impl RngForBench for Xoroshiro128PlusPlus {
-  fn from_u64(n: u64) -> Self { Self::seed_from_u64(n) }
-  fn u64(&mut self) -> u64 { self.random() }
-  fn range_u64(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
-  fn f64(&mut self) -> f64 { self.random() }
-  fn bernoulli(&mut self, p: f64) -> bool { self.random_bool(p) }
-  fn fill(&mut self, buf: &mut [u8]) { self.fill_bytes(buf) }
-  fn shuffle<T>(&mut self, slice: &mut [T]) { <[T] as SliceRandom>::shuffle(slice, self) }
+impl Rng for rand_pcg::Lcg128CmDxsm64 {
+  fn new() -> Self { Self::seed_from_u64(black_box(0)) }
+  #[inline] fn uniform(&mut self) -> u64 { self.next_u64() }
+  #[inline] fn between(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  #[inline] fn float(&mut self) -> f64 { self.random() }
+  #[inline] fn bool(&mut self, p: f64) -> bool { self.random_bool(p) }
+  fn fill(&mut self, buf: &mut [u8]) { self.fill_bytes(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { slice.shuffle(self); }
+}
+
+impl Rng for rand_xoshiro::Xoroshiro128PlusPlus {
+  fn new() -> Self { Self::seed_from_u64(black_box(0)) }
+  #[inline] fn uniform(&mut self) -> u64 { self.next_u64() }
+  #[inline] fn between(&mut self, lo: u64, hi: u64) -> u64 { self.random_range(lo ..= hi) }
+  #[inline] fn float(&mut self) -> f64 { self.random() }
+  #[inline] fn bool(&mut self, p: f64) -> bool { self.random_bool(p) }
+  fn fill(&mut self, buf: &mut [u8]) { self.fill_bytes(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { slice.shuffle(self); }
+}
+
+#[cfg(feature = "thread_local")]
+pub(crate) struct DandelionThreadLocal;
+
+#[cfg(feature = "thread_local")]
+impl Rng for DandelionThreadLocal {
+  fn new() -> Self { DandelionThreadLocal }
+  #[inline] fn uniform(&mut self) -> u64 { dandelion::thread_local::uniform() }
+  #[inline] fn between(&mut self, lo: u64, hi: u64) -> u64 { dandelion::thread_local::between(lo, hi) }
+  #[inline] fn float(&mut self) -> f64 { dandelion::thread_local::float() }
+  #[inline] fn bool(&mut self, p: f64) -> bool { dandelion::thread_local::bool(p) }
+  fn fill(&mut self, buf: &mut [u8]) { dandelion::thread_local::fill(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { dandelion::thread_local::shuffle(slice); }
+}
+
+#[cfg(feature = "thread_local")]
+pub(crate) struct RandThreadLocal;
+
+#[cfg(feature = "thread_local")]
+impl Rng for RandThreadLocal {
+  fn new() -> Self { RandThreadLocal }
+  #[inline] fn uniform(&mut self) -> u64 { rand::random() }
+  #[inline] fn between(&mut self, lo: u64, hi: u64) -> u64 { rand::random_range(lo ..= hi) }
+  #[inline] fn float(&mut self) -> f64 { rand::random() }
+  #[inline] fn bool(&mut self, p: f64) -> bool { rand::random_bool(p) }
+  fn fill(&mut self, buf: &mut [u8]) { rand::fill(buf); }
+  fn shuffle<T>(&mut self, slice: &mut [T]) { slice.shuffle(&mut rand::rng()); }
 }

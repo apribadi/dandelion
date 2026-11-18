@@ -3,6 +3,7 @@
 use dandelion::Rng;
 use rand::RngExt as _;
 use std::num::NonZeroU128;
+use std::num::NonZeroU16;
 use std::num::NonZeroU32;
 use std::num::NonZeroU64;
 
@@ -12,118 +13,276 @@ pub fn new(s: NonZeroU128) -> Rng {
 }
 
 #[inline(never)]
-pub fn bernoulli(g: &mut Rng, p: f64) -> bool {
-  g.bernoulli(p)
+pub fn from_u64(n: u64) -> Rng {
+  Rng::from_u64(n)
 }
 
 #[inline(never)]
-pub fn bool(g: &mut Rng) -> bool {
-  g.bool()
+pub fn next(g: &mut Rng) -> u64 {
+  g.next()
 }
 
 #[inline(never)]
-pub fn u32(g: &mut Rng) -> u32 {
-  g.u32()
+pub fn bool(g: &mut Rng, p: f64) -> bool {
+  g.bool(p)
 }
 
 #[inline(never)]
-pub fn u64(g: &mut Rng) -> u64 {
-  g.u64()
+pub fn uniform_bool(g: &mut Rng) -> bool {
+  g.uniform()
 }
 
 #[inline(never)]
-pub fn u128(g: &mut Rng) -> u128 {
-  g.u128()
+pub fn uniform_u32(g: &mut Rng) -> u32 {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_u128(g: &mut Rng) -> u128 {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn bounded_u8(g: &mut Rng, n: u8) -> u8 {
+  g.bounded(n)
+}
+
+#[inline(never)]
+pub fn bounded_u16(g: &mut Rng, n: u16) -> u16 {
+  g.bounded(n)
 }
 
 #[inline(never)]
 pub fn bounded_u32(g: &mut Rng, n: u32) -> u32 {
-  g.bounded_u32(n)
+  g.bounded(n)
+}
+
+#[inline(never)]
+pub fn bounded_u32_max(g: &mut Rng) -> u32 {
+  g.bounded(u32::MAX)
 }
 
 #[inline(never)]
 pub fn bounded_u64(g: &mut Rng, n: u64) -> u64 {
-  g.bounded_u64(n)
+  g.bounded(n)
 }
 
 #[inline(never)]
-pub fn bounded_u64_zero(g: &mut Rng) -> u64 {
-  g.bounded_u64(0)
+pub fn bounded_u64_0(g: &mut Rng) -> u64 {
+  g.bounded(0)
 }
 
 #[inline(never)]
 pub fn bounded_u64_255(g: &mut Rng) -> u64 {
-  g.bounded_u64(255)
+  g.bounded(255)
+}
+
+#[inline(never)]
+pub fn bounded_u64_max(g: &mut Rng) -> u64 {
+  g.bounded(u64::MAX)
 }
 
 #[inline(never)]
 pub fn bounded_usize(g: &mut Rng, n: usize) -> usize {
-  g.bounded_usize(n)
+  g.bounded(n)
 }
 
 #[inline(never)]
-pub fn range_isize(g: &mut Rng, lo: isize, hi: isize) -> isize {
-  g.range_isize(lo, hi)
+pub fn between_u32(g: &mut Rng, lo: u32, hi: u32) -> u32 {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn range_u32(g: &mut Rng, lo: u32, hi: u32) -> u32 {
-  g.range_u32(lo, hi)
+pub fn between_u64(g: &mut Rng, lo: u64, hi: u64) -> u64 {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn range_u64(g: &mut Rng, lo: u64, hi: u64) -> u64 {
-  g.range_u64(lo, hi)
+pub fn between_isize(g: &mut Rng, lo: isize, hi: isize) -> isize {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn range_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
-  g.range_usize(lo, hi)
+pub fn between_usize(g: &mut Rng, lo: usize, hi: usize) -> usize {
+  g.between(lo, hi)
 }
 
 #[inline(never)]
-pub fn non_zero_u32(g: &mut Rng) -> NonZeroU32 {
-  g.non_zero_u32()
+pub fn uniform_non_zero_u32(g: &mut Rng) -> NonZeroU32 {
+  g.uniform()
 }
 
 #[inline(never)]
-pub fn non_zero_u64(g: &mut Rng) -> NonZeroU64 {
-  g.non_zero_u64()
+pub fn uniform_non_zero_u64(g: &mut Rng) -> NonZeroU64 {
+  g.uniform()
 }
 
 #[inline(never)]
-pub fn non_zero_u128(g: &mut Rng) -> NonZeroU128 {
-  g.non_zero_u128()
+pub fn uniform_non_zero_u128(g: &mut Rng) -> NonZeroU128 {
+  g.uniform()
 }
 
 #[inline(never)]
 pub fn f32(g: &mut Rng) -> f32 {
-  g.f32()
+  g.float()
+}
+
+#[inline(never)]
+pub fn f32x4(g: &mut Rng) -> [f32; 4] {
+  std::array::from_fn(|_| g.float())
 }
 
 #[inline(never)]
 pub fn f64(g: &mut Rng) -> f64 {
-  g.f64()
+  g.float()
 }
 
 #[inline(never)]
-pub fn biunit_f32(g: &mut Rng) -> f32 {
-  g.biunit_f32()
+pub fn float_biunit_f32(g: &mut Rng) -> f32 {
+  g.float_biunit()
 }
 
 #[inline(never)]
-pub fn biunit_f64(g: &mut Rng) -> f64 {
-  g.biunit_f64()
+pub fn float_biunit_f64(g: &mut Rng) -> f64 {
+  g.float_biunit()
 }
 
 #[inline(never)]
-pub fn byte_array_32(g: &mut Rng) -> [u8; 32] {
-  g.byte_array()
+pub fn uniform_6bool(g: &mut Rng) -> [bool; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6u8(g: &mut Rng) -> [u8; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6i16(g: &mut Rng) -> [i16; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6u16(g: &mut Rng) -> [u16; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6nzu16(g: &mut Rng) -> [NonZeroU16; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6i32(g: &mut Rng) -> [i32; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_6u32(g: &mut Rng) -> [u32; 6] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_2x3u16(g: &mut Rng) -> [[u16; 3]; 2] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn uniform_3x2x3u16(g: &mut Rng) -> [[[u16; 3]; 2]; 3] {
+  g.uniform()
+}
+
+#[inline(never)]
+pub fn fill_u8(g: &mut Rng, buf: &mut [u8]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_i16(g: &mut Rng, buf: &mut [i16]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_u16(g: &mut Rng, buf: &mut [u16]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_u32(g: &mut Rng, buf: &mut [u32]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_u64(g: &mut Rng, buf: &mut [u64]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_u128(g: &mut Rng, buf: &mut [u128]) {
+  g.fill(buf)
+}
+
+#[inline(never)]
+pub fn fill_6u16(g: &mut Rng, buf: &mut [[u16; 6]]) {
+  g.fill(buf)
+}
+
+pub fn fill_3x2x3u16(g: &mut Rng, buf: &mut [[[[u16; 3]; 2]; 3]]) {
+  g.fill(buf)
+}
+
+pub fn fill_nzu16(g: &mut Rng, buf: &mut [NonZeroU16]) {
+  g.fill(buf)
+}
+
+pub fn fill_2nzu16(g: &mut Rng, buf: &mut [[NonZeroU16; 2]]) {
+  g.fill(buf)
+}
+
+pub fn fill_2nzu128(g: &mut Rng, buf: &mut [[NonZeroU128; 2]]) {
+  g.fill(buf)
 }
 
 #[inline(never)]
 pub fn shuffle(g: &mut Rng, a: &mut [u32]) {
   g.shuffle(a)
+}
+
+#[cfg(feature = "thread_local")]
+#[inline(never)]
+pub fn thread_local_u64() -> u64 {
+  dandelion::thread_local::uniform()
+}
+
+#[cfg(feature = "thread_local")]
+#[inline(never)]
+pub fn thread_local_u64x3() -> u64 {
+  let x = dandelion::thread_local::uniform::<u64>();
+  let y = dandelion::thread_local::uniform::<u64>();
+  let z = dandelion::thread_local::uniform::<u64>();
+  x ^ y ^ z
+}
+
+#[cfg(feature = "thread_local")]
+#[inline(never)]
+pub fn thread_local_u64_loop() -> u64 {
+  let mut x = 0;
+  for _ in 0 .. 100 {
+    x ^= dandelion::thread_local::uniform::<u64>();
+  }
+  x
+}
+
+#[cfg(feature = "rand_core")]
+#[inline(never)]
+pub fn from_seed(seed: [u8; 16]) -> Rng {
+  <Rng as rand::SeedableRng>::from_seed(seed)
+}
+
+#[cfg(feature = "rand_core")]
+#[inline(never)]
+pub fn seed_from_u64(seed: u64) -> Rng {
+  <Rng as rand::SeedableRng>::seed_from_u64(seed)
 }
 
 #[cfg(feature = "rand_core")]
@@ -134,7 +293,7 @@ pub fn fork(g: &mut Rng) -> Rng {
 
 #[cfg(feature = "rand_core")]
 #[inline(never)]
-pub fn try_fork(g: &mut Rng) -> Result<Rng, rand_core::Infallible> {
+pub fn try_fork(g: &mut Rng) -> Result<Rng, core::convert::Infallible> {
   <Rng as rand::SeedableRng>::try_fork(g)
 }
 
@@ -154,6 +313,11 @@ pub fn xoroshiro_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> u64 {
 }
 
 #[inline(never)]
+pub fn xoroshiro_f64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> f64 {
+  g.random()
+}
+
+#[inline(never)]
 pub fn xoroshiro_non_zero_u32(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> NonZeroU32 {
   g.random()
 }
@@ -169,6 +333,74 @@ pub fn xoroshiro_bounded_u64(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, n: u64)
 }
 
 #[inline(never)]
-pub fn xoroshiro_bernoulli(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, p: f64) -> bool {
+pub fn xoroshiro_bounded_u64_loop(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, n: u64) -> u64 {
+  let mut x = 0u64;
+  for _ in 0 .. 100 {
+    x ^= g.random_range(0 ..= n);
+  }
+  x
+}
+
+#[inline(never)]
+pub fn xoroshiro_bounded_u64_255(g: &mut rand_xoshiro::Xoroshiro128PlusPlus) -> u64 {
+  g.random_range(0 ..= 255)
+}
+
+#[inline(never)]
+pub fn xoroshiro_bool(g: &mut rand_xoshiro::Xoroshiro128PlusPlus, p: f64) -> bool {
   g.random_bool(p)
+}
+
+pub struct Rng1n64(NonZeroU64);
+
+#[inline(never)]
+pub fn rng1n64_next(g: &mut Rng1n64) -> u32 {
+  let s = g.0.get();
+  let x = s as u32;
+  let y = (s >> 32) as u32;
+  let u = y ^ x << 10;
+  let v = x ^ (y.cast_signed() >> 7).cast_unsigned();
+  let s = u as u64 ^ (v as u64) << 32;
+  g.0 = unsafe { NonZeroU64::new_unchecked(s) };
+  let z = x as u64 * y as u64;
+  y.wrapping_add(z as u32) ^ (z >> 32) as u32
+}
+
+pub struct Rng2u32(u32, u32);
+
+#[inline(never)]
+pub fn rng2u32_next(g: &mut Rng2u32) -> u32 {
+  let x = g.0;
+  let y = g.1;
+  g.0 = y ^ x << 10;
+  g.1 = x ^ (y.cast_signed() >> 7).cast_unsigned();
+  let z = x as u64 * y as u64;
+  y.wrapping_add(z as u32) ^ (z >> 32) as u32
+}
+
+pub struct Rng1n32(NonZeroU32);
+
+#[inline(never)]
+pub fn rng1n32_next(g: &mut Rng1n32) -> u16 {
+  let s = g.0.get();
+  let x = s as u16;
+  let y = (s >> 16) as u16;
+  let u = y ^ x << 5;
+  let v = x ^ (y.cast_signed() >> 3).cast_unsigned();
+  let s = u as u32 ^ (v as u32) << 16;
+  g.0 = unsafe { NonZeroU32::new_unchecked(s) };
+  let z = x as u32 * y as u32;
+  y.wrapping_add(z as u16) ^ (z >> 16) as u16
+}
+
+pub struct Rng2u16(u16, u16);
+
+#[inline(never)]
+pub fn rng2u16_next(g: &mut Rng2u16) -> u16 {
+  let x = g.0;
+  let y = g.1;
+  g.0 = y ^ x << 5;
+  g.1 = x ^ (y.cast_signed() >> 3).cast_unsigned();
+  let z = x as u32 * y as u32;
+  y.wrapping_add(z as u16) ^ (z >> 16) as u16
 }

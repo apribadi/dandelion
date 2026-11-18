@@ -7,10 +7,7 @@ keywords = ["random", "prng", "rng"]
 license = "Artistic-2.0"
 name = "dandelion-random"
 repository = "https://github.com/apribadi/dandelion"
-version = "0.3.1"
-
-[package.metadata.docs.rs]
-all-features = true
+version = "0.4.0"
 
 [features]
 getrandom = ["dep:getrandom"] # dandelion::Rng::from_operating_system
@@ -30,15 +27,14 @@ name = "asm"
 crate-type = ["lib"]
 
 [dependencies]
-getrandom = { version = "0.4.2", optional = true }
+getrandom = { version = "0.4.3", optional = true }
 rand_core = { version = "0.10.1", optional = true }
 
 [dev-dependencies]
-divan = "0.1.21"
 expect-test = "1.5.1"
-rand = "0.10.1"
+rand = "0.10.4"
 rand_pcg = "0.10.2"
-rand_xoshiro = "0.8.0"
+rand_xoshiro = "0.8.1"
 
 [lints.rust]
 elided_lifetimes_in_paths = "warn"
@@ -50,3 +46,6 @@ unsafe_op_in_unsafe_fn = "deny"
 unused_lifetimes = "warn"
 unused_qualifications = "warn"
 unused_results = "warn"
+
+[package.metadata.docs.rs]
+all-features = true

@@ -2,132 +2,206 @@
 
 mod bmatrix;
 
-use bmatrix::M128;
+use bmatrix::Bm32;
+use bmatrix::Bm64;
+use bmatrix::Bm128;
 
-fn main() {
-  print!("dandelion: (x, y) => (y ^ asr(x, a), x ^ lsl(y, b))\n");
-  check(|x, y, a, b| (y ^ asr(x, a), x ^ lsl(y, b)));
-  // print!("\n");
-  // print!("orig: (x, y) => (y ^ lsr(y, a), x ^ ror(y, b))\n");
-  // check(|x, y, a, b| (y ^ lsr(y, a), x ^ ror(y, b)));
-  // print!("\n");
-  // print!("seiran: (x, y) => (x ^ rol(y, a), x ^ lsl(y, b))\n");
-  // check(|x, y, a, b| (x ^ rol(y, a), x ^ lsl(y, b)));
-  // print!("\n");
-  // print!("shioi: (x, y) => (y, y ^ (asr(x, a) ^ lsl(x, b)))\n");
-  // check(|x, y, a, b| (y, y ^ (asr(x, a) ^ lsl(x, b))));
-}
+trait W
+  : Copy
+  + std::ops::BitXor<Output = Self>
+  + std::ops::Shl<usize, Output = Self>
+{
+  const BITS: u32;
 
-const FULL_PERIOD: u128 = u128::MAX;
+  const I: Self::M;
 
-const PRIME_FACTORS: [u128; 9] = [
-  3,
-  5,
-  17,
-  257,
-  65_537,
-  641,
-  6_700_417,
-  274_177,
-  67_280_421_310_721,
-];
+  const PRIMES: &'static [u128];
 
-const _: () = {
-  let mut x = 1;
-  let mut i = 0;
-  while i < PRIME_FACTORS.len() {
-    x *= PRIME_FACTORS[i];
-    i += 1;
-  }
-  assert!(x == FULL_PERIOD);
-};
+  const FULL_PERIOD: u128;
 
-fn concat(x: u64, y: u64) -> u128 {
-  x as u128 ^ (y as u128) << 64
-}
+  type M
+    : Copy
+    + Eq
+    + std::ops::Mul<Output = Self::M>;
 
-fn lo(x: u128) -> u64 {
-  x as u64
-}
+  fn asr(_: Self, _: usize) -> Self;
 
-fn hi(x: u128) -> u64 {
-  (x >> 64) as u64
-}
+  fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(_: F) -> Self::M;
 
-fn asr(x: u64, a: usize) -> u64 {
-  ((x as i64) >> a) as u64
-}
-
-fn lsl(x: u64, a: usize) -> u64 {
-  x << a
-}
-
-#[allow(unused)]
-fn lsr(x: u64, a: usize) -> u64 {
-  x >> a
-}
-
-#[allow(unused)]
-fn rol(x: u64, a: usize) -> u64 {
-  x.rotate_left(a as u32)
-}
-
-#[allow(unused)]
-fn ror(x: u64, a: usize) -> u64 {
-  x.rotate_right(a as u32)
-}
-
-fn make_mat<F: Fn(u64, u64) -> (u64, u64)>(f: F) -> M128 {
-  let mut a = M128::ZERO;
-  for j in 0 .. 128 {
-    let x = 1 << j;
-    let y = f(lo(x), hi(x));
-    let y = concat(y.0, y.1);
-    for i in 0 .. 128 {
-      if y >> i & 1 != 0 {
-        a.set(i, j, true);
-      }
+  fn pow(x: Self::M, n: u128) -> Self::M {
+    if n == 0 { return Self::I; }
+    let mut n = n;
+    let mut x = x;
+    let mut y = Self::I;
+    while n != 1 {
+      if n & 1 != 0 { y = x * y; }
+      x = x * x;
+      n = n / 2;
     }
+    x * y
   }
-  a
-}
 
-fn pow_2_128(x: M128) -> M128 {
-  let mut x = x;
-  for _ in 0 .. 128 {
-    x = x * x;
+  fn pow_full(x: Self::M) -> Self::M {
+    let mut x = x;
+    for _ in 0 .. 2 * Self::BITS {
+      x = x * x;
+    }
+    x
   }
-  x
-}
 
-fn pow(x: M128, n: u128) -> M128 {
-  if n == 0 { return M128::I; }
-  let mut n = n;
-  let mut x = x;
-  let mut y = M128::I;
-  while n != 1 {
-    if n & 1 != 0 { y = x * y; }
-    x = x * x;
-    n = n / 2;
-  }
-  x * y
-}
-
-fn check<F: Fn(u64, u64, usize, usize) -> (u64, u64)>(f: F) {
-  for a in 1 ..= 63 {
-    for b in 1 ..= 63 {
-      let x = make_mat(|x, y| f(x, y, a, b));
-      if pow_2_128(x) == x && pow(x, u128::MAX) == M128::I {
-        'fail: {
-          for &p in PRIME_FACTORS.iter() {
-            if pow(x, FULL_PERIOD / p) == M128::I {
-              // print!("FAIL a={} b={} p={}\n", a, b, p);
-              break 'fail;
+  fn check() {
+    let _: () = const {
+      let mut a = 1u128;
+      let mut i = 0;
+      while i < Self::PRIMES.len() {
+        a *= Self::PRIMES[i];
+        i += 1;
+      }
+      assert!(a == Self::FULL_PERIOD);
+    };
+    for a in 1 .. Self::BITS as usize {
+      for b in 1 .. Self::BITS as usize {
+        let m = Self::make_mat(|x, y| (y ^ Self::shl(x, a), x ^ Self::asr(y, b)));
+        if Self::pow_full(m) == m && Self::pow(m, Self::FULL_PERIOD) == Self::I {
+          'fail: {
+            for &p in Self::PRIMES.iter() {
+              if Self::pow(m, Self::FULL_PERIOD / p) == Self::I {
+                // print!("FAIL a={} b={} p={}\n", a, b, p);
+                break 'fail;
+              }
             }
+            print!("OK a={} b={}\n", a, b);
           }
-          print!("OK a={} b={}\n", a, b);
         }
       }
     }
   }
+}
+
+impl W for u16 {
+  const BITS: u32 = Self::BITS;
+
+  const I: Self::M = Bm32::I;
+
+  const PRIMES: &'static [u128] = &[
+    3,
+    5,
+    17,
+    257,
+    65_537,
+  ];
+
+  const FULL_PERIOD: u128 = u32::MAX as u128;
+
+  type M = Bm32;
+
+  fn asr(x: Self, a: usize) -> Self {
+    (x.cast_signed() >> a).cast_unsigned()
+  }
+
+  fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(f: F) -> Self::M {
+    let mut a = Bm32::ZERO;
+    for j in 0 .. 2 * Self::BITS {
+      let x = 1u32 << j;
+      let y = f(x as Self, (x >> Self::BITS) as Self);
+      let y = (y.0 as u32) ^ ((y.1 as u32) << Self::BITS);
+      for i in 0 .. 2 * Self::BITS {
+        if y & (1 << i) != 0 {
+          a.set(i as usize, j as usize, true);
+        }
+      }
+    }
+    a
+  }
+}
+
+impl W for u32 {
+  const BITS: u32 = Self::BITS;
+
+  const I: Self::M = Bm64::I;
+
+  const PRIMES: &'static [u128] = &[
+    3,
+    5,
+    17,
+    257,
+    65_537,
+    641,
+    6_700_417,
+  ];
+
+  const FULL_PERIOD: u128 = u64::MAX as u128;
+
+  type M = Bm64;
+
+  fn asr(x: Self, a: usize) -> Self {
+    (x.cast_signed() >> a).cast_unsigned()
+  }
+
+  fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(f: F) -> Self::M {
+    let mut a = Bm64::ZERO;
+    for j in 0 .. 2 * Self::BITS {
+      let x = 1u64 << j;
+      let y = f(x as Self, (x >> Self::BITS) as Self);
+      let y = (y.0 as u64) ^ ((y.1 as u64) << Self::BITS);
+      for i in 0 .. 2 * Self::BITS {
+        if y & (1 << i) != 0 {
+          a.set(i as usize, j as usize, true);
+        }
+      }
+    }
+    a
+  }
+}
+
+impl W for u64 {
+  const BITS: u32 = Self::BITS;
+
+  const I: Self::M = Bm128::I;
+
+  const PRIMES: &'static [u128] = &[
+    3,
+    5,
+    17,
+    257,
+    65_537,
+    641,
+    6_700_417,
+    274_177,
+    67_280_421_310_721,
+  ];
+
+  const FULL_PERIOD: u128 = u128::MAX;
+
+  type M = Bm128;
+
+  fn asr(x: Self, a: usize) -> Self {
+    (x.cast_signed() >> a).cast_unsigned()
+  }
+
+  fn make_mat<F: Fn(Self, Self) -> (Self, Self)>(f: F) -> Self::M {
+    let mut a = Bm128::ZERO;
+    for j in 0 .. 2 * Self::BITS {
+      let x = 1u128 << j;
+      let y = f(x as Self, (x >> Self::BITS) as Self);
+      let y = (y.0 as u128) ^ ((y.1 as u128) << Self::BITS);
+      for i in 0 .. 2 * Self::BITS {
+        if y & (1 << i) != 0 {
+          a.set(i as usize, j as usize, true);
+        }
+      }
+    }
+    a
+  }
+}
+
+fn main() {
+  print!("u16x2: (x, y) => (y ^ shl(x, a), x ^ asr(y, b))\n");
+  u16::check();
+  print!("\n");
+  print!("u32x2: (x, y) => (y ^ shl(x, a), x ^ asr(y, b))\n");
+  u32::check();
+  print!("\n");
+  print!("u64x2: (x, y) => (y ^ shl(x, a), x ^ asr(y, b))\n");
+  u64::check();
 }

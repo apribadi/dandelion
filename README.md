@@ -1,39 +1,48 @@
-Dandelion is a high performance non-cryptographic pseudo random number
-generator. Its state consists of 128 bits and its cycle length is 2¹²⁸ - 1.
+# Synopsis
 
-It is suited to producing random numbers for algorithms applied to simulation,
-testing, statistics, data structures, etc.
+Dandelion is a high performance non-cryptographic random number generator. Its
+state consists of 128 bits and its cycle length is 2¹²⁸ - 1. It is suited to
+producing random numbers for algorithms applied to simulation, testing,
+statistics, data structures, etc.
 
 Particular attention has been paid to keeping the footprint of the generator
-small (e.g. small state, small code size, no large constants) so that it can be
-used to generate a few random numbers at a time without negatively impacting
-the performance of surrounding code.
+small (e.g. small code size, small state) so that it can be used to generate a
+few random numbers at a time without negatively impacting the performance of
+surrounding code.
 
-# Example
+You can deterministically initialize a `Rng` from a seed with `Rng::new` or
+`Rng::from_u64`, or you can non-deterministically initialize a `Rng` from a
+platform provided source of randomness with `Rng::from_operating_system`. You
+can also access a thread-local `Rng` instance with the
+`dandelion::thread_local` module.
+
+Much of the API for generating random numbers is organized around a few sealed
+traits. For example, the `Rng::uniform` method can generate a value of any type
+that satisfies the `RandomUniform` trait.
 
 ```
-use dandelion::Rng;
-use std::num::NonZeroU128;
-let mut g = Rng::new(NonZeroU128::MIN);
-let a = g.u64();
-let b = g.range_u64(1, 6);
-let c = g.f64();
-let d = g.bernoulli(0.75);
-assert!(a == 11430558048722533601);
-assert!(b == 1);
-assert!(c == 0.8785255653006182);
-assert!(d == true);
+let mut g = dandelion::Rng::new(std::num::NonZeroU128::MIN);
+let a: u32 = g.uniform();
+let b: u64 = g.between(1, 6);
+let c: f64 = g.float();
+let d = g.bool(0.75);
+let e: [i16; 3] = g.uniform();
+std::assert_matches!(a, 3465985249);
+std::assert_matches!(b, 6);
+std::assert_matches!(c, 0.9333146823381274);
+std::assert_matches!(d, true);
+std::assert_matches!(e, [-11392, 19564, 12621]);
 ```
 
 # A Peek at the Assembly
 
-On `aarch64` generating one `u64` looks like:
+The `aarch64` assembly for generating one `u64` looks like:
 
 ```text
-u64:
+next:
     ldp x8, x9, [x0]
-    eor x10, x9, x8, asr #4
-    eor x11, x8, x9, lsl #7
+    eor x10, x9, x8, lsl #7
+    eor x11, x8, x9, asr #4
     stp x10, x11, [x0]
     madd x9, x8, x8, x9
     umulh x8, x8, x8
@@ -41,47 +50,39 @@ u64:
     ret
 ```
 
-# Algorithm
+# Core Algorithm
 
-The core of the generator has two parts: a state transition function `T: (u64,
-u64) -> (u64, u64)` and an output function `F: (u64, u64) -> u64`. Then the
-`k`th output is
-
-```text
-F(T(T( ... T(x₀, y₀) ... )))
-  \________/
-   k times
-```
-
-where `(x₀, y₀)` is the initial state.
+The core of the random number generator has two parts: a state transition
+function `T: (u64, u64) -> (u64, u64)` and an output function `F: (u64, u64) ->
+u64`.
 
 The state transition function `T` is defined
 
 ```text
-T(x, y) = (y ^ asr(x, 4), x ^ lsl(y, 7))
+T(x, y) = (y ^ shl(x, 7), x ^ asr(y, 4))
 ```
 
 and the output function `F` is defined
 
 ```text
-F(x, y) = (y + x * x) ^ mulhi(x, x)
+F(x, y) = (x * x + y) ^ mulhi(x, x)
 ```
 
-where `asr` is arithmetic shift right, `lsl` is logical shift left, and `mulhi`
-produces the high part of the result an unsigned 64-bit full multiplication.
-We further require the state to not be all zeros, i.e. `(x, y) ≠ (0, 0)`.
+where `shl` is shift left, `asr` is arithmetic shift right, and `mulhi` produces
+the high half of an unsigned full multiply. We further require the state to not
+be all zeros, i.e. `(x, y) != (0, 0)`.
 
-There are two things to note about these functions. First, `T` can be thought
-of as a linear transformation on the space F₂¹²⁸ of vectors of 128 bits.
-Second, for any fixed value of `x`, the function `y ⇒ (y + x * x) ^ mulhi(x, x)`
-is a permutation of F₂⁶⁴.
+There are two things to note about these functions. First, `T` can be thought of
+as a linear transformation on the space F₂¹²⁸ of vectors of 128 bits. Second,
+for any fixed value of `x`, the function `y => (x * x + y) ^ mulhi(x, x)` is a
+permutation of F₂⁶⁴.
 
 # The Period of the State Transition
 
-We will demonstrate that the state transition function has full period 2¹²⁸ - 1.
-We can do the necessary computations on matrices over the field F₂. Let `A`
-be the binary matrix representing our transition. Then it is sufficient to
-show that
+We demonstrate that the state transition function has full period 2¹²⁸ - 1. We
+can do the necessary computations on matrices over the field F₂. Let `A` be the
+binary matrix representing our transition, and let `I` be the identity matrix.
+Then it is sufficient to show that
 
 ```text
 pow(A, 2¹²⁸ - 1) = I
@@ -90,12 +91,11 @@ pow(A, 2¹²⁸ - 1) = I
 and
 
 ```text
-pow(A, (2¹²⁸ - 1) / p) ≠ I
+pow(A, (2¹²⁸ - 1) / p) != I
 ```
 
-for all prime divisors `p` of 2¹²⁸ - 1, where `I` is the identity matrix. We
-can compute powers `pow(A, n)` in `O(log(n))` time, so these computations are
-feasible.
+for all prime divisors `p` of 2¹²⁸ - 1. We can compute powers `pow(A, n)` in
+`O(log(n))` time, so these computations are feasible.
 
 The Mersenne number 2¹²⁸ - 1 factors into Fermat numbers as
 
@@ -110,8 +110,8 @@ The Mersenne number 2¹²⁸ - 1 factors into Fermat numbers as
     * (2⁶⁴ + 1)
 ```
 
-and the prime factorizations of small(er) Fermat numbers are well known. The
-full prime factorization of 2¹²⁸ - 1 is
+and the prime factorizations of small Fermat numbers are well known. The full
+prime factorization of 2¹²⁸ - 1 is
 
 ```text
 2¹²⁸ - 1 =
@@ -129,117 +129,117 @@ full prime factorization of 2¹²⁸ - 1 is
 The complete set of `(α, β)` such that
 
 ```text
-(x, y) ⇒ (y ^ asr(x, α), x ^ lsl(y, β))
+(x, y) ⇒  (y ^ shl(x, α), x ^ asr(y, β))
 ```
 
 has full period (see code in examples/period) is
 
 ```text
-α=4 β=7
-α=26 β=37
+α=7 β=4
+α=37 β=26
 ```
 
-and we use `(4, 7)` because it has the less sparse transition matrix.
+and we use `(7, 4)` because it has the less sparse transition matrix.
 
 # Maximal Equidistribution
 
 The generator is maximally 1-equidistributed. More precisely, over the full
-2¹²⁸ - 1 cycle, zero occurs 2⁶⁴ - 1 times and every other number occurs 2⁶⁴
-times.
+cycle of 2¹²⁸ - 1 states, the zero output occurs 2⁶⁴ - 1 times and every other
+output occurs 2⁶⁴ times.
 
-This follows from the previously noted fact that for any fixed value of `x`,
-the function `y ⇒ (y + x * x) ^ mulhi(x, x)` is a permutation of F₂⁶⁴.
+This follows from the previously noted fact that for any fixed value of `x`, the
+function `y => (x * x + y) ^ mulhi(x, x)` is a permutation of F₂⁶⁴, and that the
+"missing" state is `(0, 0)`.
 
 # Design Considerations
 
-A state size of 128 bits was selected because 64 bits might be too small for
-some non-cryptographic applications.
+A state size of 128 bits was selected to be barely large enough to suffice for
+almost all non-cryptographic applications. A 64 bit state is small enough that
+it isn't too difficult to detect statistical weaknesses by brute force, and a
+192 bit state is larger than necessary.
 
 The state transition function is similar to those in the xorshift extended
-family, but is weakened as much as possible while retaining a full period. It
-is closest in design to those in the somewhat obscure "shioi" and "seiran"
-random number generators.
+family, but is weakened as much as possible while retaining a full period. It is
+closest in design to those in the somewhat obscure "shioi" and "seiran" random
+number generators.
 
 The output function contains a `u64, u64 -> u128` full multiply. This does a
 lot of mixing while being relatively cheap on current CPUs. This kind of mixer
 was inspired by similar constructions in the "mum-hash" and "wyhash" libraries.
 
 It would be straightforward to increase the throughput of the algorithm by
-enlarging the state (whether the state is represented as scalars or as SIMD
-vectors), but maximizing the throughput of bulk generation is not the primary
-design objective. For example, one could imagine updating multiple copies of
-the state at the same time to take advantage of instruction level parallelism
-or vectorization.
+enlarging the state (whether the state is represented as a set of scalars or
+SIMD vectors), but maximizing the throughput of bulk generation is not the
+primary design objective. One could imagine a generator design that instead
+updates multiple copies of the state at the same time to take advantage of
+either instruction level parallelism or vector operations.
 
 # Benchmarks
 
-We compare dandelion with two other non-cryptographic random number generators
-that each have 128-bit states and no known statistical flaws:
+We compare dandelion with a few other random number generators.
 
-- the pcg-dxsm algorithm with a 64-bit multiplier, as implemented in the
-  `rand_pcg` crate, and
+- The xoroshiro128++ algorithm, as implemented in `rand_xoshiro` crate.
+- The pcg-dxsm algorithm with a 64 bit multiplier, as implemented in the
+  `rand_pcg` crate.
+- The `rand` crate's `SmallRng`, which currently uses xoshiro256++.
+- THe `rand` crate's thread-local generator, which currently uses 12-round
+  chacha.
 
-- the xoroshiro128++ algorithm, as implemented in `rand_xoshiro` crate.
+The first two algorithms are notable for each being a non-cryptographic random
+number generator with a 128 bit state and no known statistical flaws. The last
+two algorithms are de-facto standards in the Rust crate ecosystem.
 
-Both alternatives use the `rand` crate to implement generating integers in
-a range, generating floats, and filling byte buffers.
+The alternative algorithms use the `rand` crate to implement generating an
+integer in a range, generating a float, filling a byte buffer, and shuffling a
+slice.
 
-The benchmarks labeled "noinline" ensure that random number generation is not
+Units are nanoseconds per generated number (lower is better).
+
+```text
+                        uniform  uniform-ni  between  between-ni  float  bool   fill   fill-sm  shuffle
+dandelion               0.530    1.794       0.941    2.250       0.530  0.572  0.517  2.052    0.598
+xoroshiro128++          0.961    2.315       2.243    2.638       0.986  0.970  0.988  2.148    1.221
+pcg-dxsm                1.138    2.751       1.688    3.161       1.150  1.168  1.135  2.417    1.309
+rand-small-rng          0.660    2.114       2.009    2.423       0.697  0.671  0.651  2.382    1.262
+dandelion-thread-local  0.534    1.886       1.060    2.468       0.597  0.610  0.517  3.067    0.587
+rand-thread-local       3.777    5.274       6.077    6.554       5.360  3.930  2.518  7.129    1.751
+```
+
+The benchmarks labeled "`-ni`" ensure that random number generation is not
 inlined into the benchmark loop. This measures performance in a scenario where
 certain parts of random number generation cannot be amortized, as can happen
 when random number generation is embedded within a larger algorithm. For
 instance, the compiler might not be able to do store-to-load forwarding of the
 generator state or to hoist loading of large constants.
 
-The benchmarks were run on an Apple M1 Macbook Air.
+The benchmarks were run on an Apple M5. The data was generated with the
+following command:
 
 ```text
-dandelion
-0.883 ns/word - u64
-2.399 ns/word - u64 noinline
-1.721 ns/word - range_u64
-3.185 ns/word - range_u64 noinline
-0.890 ns/word - f64
-2.442 ns/word - f64 noinline
-0.858 ns/word - fill large
-2.348 ns/word - fill small
-2.504 ns/word - fill small noinline
-0.945 ns/word - shuffle
-
-pcgdxsm128
-1.643 ns/word - u64
-4.066 ns/word - u64 noinline
-2.483 ns/word - range_u64
-4.897 ns/word - range_u64 noinline
-1.630 ns/word - f64
-4.054 ns/word - f64 noinline
-1.654 ns/word - fill large
-4.071 ns/word - fill small
-4.693 ns/word - fill small noinline
-2.067 ns/word - shuffle
-
-xoroshiro128++
-1.463 ns/word - u64
-3.328 ns/word - u64 noinline
-3.826 ns/word - range_u64 (n.b. pessimized by llvm)
-3.898 ns/word - range_u64 noinline
-1.463 ns/word - f64
-3.458 ns/word - f64 noinline
-1.474 ns/word - fill large
-3.758 ns/word - fill small
-4.380 ns/word - fill small noinline
-1.970 ns/word - shuffle
+cargo bench unified --all-features
 ```
 
 # Statistical Tests
 
-Dandelion passed the full v0.47 SmokeRand test suite, and there is no reason to
-believe that the test is close to failing. In particular, it is *not* the case
-that the algorithm was designed by successively adding complexity until
+Dandelion has been run against the PractRand and SmokeRand test suites, which
+have not detected any statistical flaws. Furthermore, there is no reason to
+believe that the tests are particularly close to failing; it is *not* the case
+that the algorithm was designed by making successive modifications until
 statistical tests passed.
 
-The `examples/rng` executable writes random bytes to stdout, which you can use
-to run your own statistical tests.
+The `examples/dandelion` executable writes random bytes to stdout, which you can
+use to run your own statistical tests.
+
+The `examples/dandelion-mini64` and `examples/dandelion-mini32` executables also
+write random bytes, but use miniaturized variants of the algorithm with
+(respectively) 64 bit and 32 bit states, operating on 32 bit and 16 bit words.
+
+# Portability
+
+Generator output does not depend on platform endianness.
+
+Word-sized output (e.g. `usize`, `isize`, ...) is produced as if the
+corresponding fixed size integer had been produced instead.
 
 # Cargo Features
 

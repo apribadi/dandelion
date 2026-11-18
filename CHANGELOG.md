@@ -1,3 +1,14 @@
+# 0.4.0
+
+- Small changes to core generator algorithm and initialization.
+- Complete reorganization of the interface for generating numbers. Generator
+  methods are now organized around a set of sealed traits.
+- Added generation of 8-bit and 16-bit numbers.
+- Added generation of arrays of uniform numbers.
+- Added `thread_local::with` which does a dynamic check for attempted
+  re-entrancy.
+- Optimized generation of small-bit-width numbers for arrays and slices.
+
 # 0.3.0
 
 - Changed both state transition and output functions in the core generator
