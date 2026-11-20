@@ -237,14 +237,13 @@ Generator output does not depend on platform endianness.
 Word-sized output (e.g. `usize`, `isize`, ...) is produced as if the
 corresponding fixed size integer had been produced instead.
 
-# Smaller Word and State Size Variants
+# Smaller Variants
 
 There exist generators with the same structure that operate on 32 bit and 16 bit
 words, with 64 bit and 32 bit states, respectively. They might be useful on a
-machine constrained to a small word size. Of course, the smaller state size
-means that they will be distinguishable from random with fewer samples.
+machine constrained to a small word size.
 
-These shifts produce generators with full period.
+These generators have full period.
 
 ```text
 T(x, y) = (y ^ shl(x, 10), x ^ asr(y, 7)) // 32 bit word, 64 bit state
