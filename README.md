@@ -132,7 +132,7 @@ The complete set of `(α, β)` such that
 (x, y) ⇒  (y ^ shl(x, α), x ^ asr(y, β))
 ```
 
-has full period (see code in examples/period) is
+has full period (see `cargo run --release --example period`) is
 
 ```text
 α=7 β=4
@@ -230,16 +230,36 @@ statistical tests passed.
 The `examples/dandelion` executable writes random bytes to stdout, which you can
 use to run your own statistical tests.
 
-The `examples/dandelion-mini64` and `examples/dandelion-mini32` executables also
-write random bytes, but use miniaturized variants of the algorithm with
-(respectively) 64 bit and 32 bit states, operating on 32 bit and 16 bit words.
-
 # Portability
 
 Generator output does not depend on platform endianness.
 
 Word-sized output (e.g. `usize`, `isize`, ...) is produced as if the
 corresponding fixed size integer had been produced instead.
+
+# Smaller Word and State Size Variants
+
+There exist generators with the same structure that operate on 32 bit and 16 bit
+words, with 64 bit and 32 bit states, respectively. They might be useful on a
+machine constrained to a small word size. Of course, the smaller state size
+means that they will be distinguishable from random with fewer samples.
+
+These shifts produce generators with full period.
+
+```text
+T(x, y) = (y ^ shl(x, 10), x ^ asr(y, 7)) // 32 bit word, 64 bit state
+```
+
+```text
+T(x, y) = (y ^ shl(x, 5), x ^ asr(y, 3)) // 16 bit word, 32 bit state
+```
+
+```text
+F(x, y) = (x * x + y) ^ mulhi(x, x) // same for any word size
+```
+
+The `examples/dandelion-mini64` and `examples/dandelion-mini32` executables
+write random bytes with these two generators.
 
 # Cargo Features
 

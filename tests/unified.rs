@@ -11,6 +11,39 @@ use std::num::NonZeroU32;
 use std::num::NonZeroU64;
 
 #[test]
+fn test_vector() {
+  let mut o = String::new();
+  let mut g = Rng::from_state(NonZeroU128::MIN);
+
+  for _ in 0 .. 20 {
+    write!(&mut o, "{:#018x}\n", g.next());
+  }
+
+  expect![[r#"
+      0x0000000000000001
+      0x0000000000004001
+      0x0000000010008081
+      0x0000040000004009
+      0x0100080130248451
+      0x0000080010028009
+      0x11028815223439d5
+      0x0010040490120211
+      0xe317498d281508a5
+      0x41122e4dd5f25bf7
+      0xe7b64bf0b457c914
+      0x0915a6b315cad02b
+      0x2c7fe24b72380760
+      0x0eae76668c4a24ae
+      0x3e18202a3330a666
+      0xe11be4ca7c867a5d
+      0xe4cc0a16945ad9fe
+      0x9afb346a8b6e3dcd
+      0x59e280f416adab1e
+      0xfa603c5ea86a08c4
+  "#]].assert_eq(o.drain(..).as_str());
+}
+
+#[test]
 fn test_api() {
   let mut out = String::new();
   let mut rng = Rng::new(NonZeroU128::MIN);
@@ -176,23 +209,8 @@ fn test_api_thread_local() {
 }
 
 #[test]
-fn test_vectors() {
+fn test_more() {
   let mut out = String::new();
-  let mut rng = Rng::from_state(NonZeroU128::MIN);
-  for _ in 0 .. 10 { write!(&mut out, "{:#018x}\n", rng.uniform::<u64>()); }
-
-  expect![[r#"
-      0x0000000000000001
-      0x0000000000004001
-      0x0000000010008081
-      0x0000040000004009
-      0x0100080130248451
-      0x0000080010028009
-      0x11028815223439d5
-      0x0010040490120211
-      0xe317498d281508a5
-      0x41122e4dd5f25bf7
-  "#]].assert_eq(out.drain(..).as_str());
 
   let mut rng = Rng::new(NonZeroU128::MIN);
   for _ in 0 .. 10 { write!(&mut out, "{:#018x}\n", rng.uniform::<u64>()); }
